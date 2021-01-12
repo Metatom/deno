@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
   assert,
   assertEquals,
@@ -6,10 +6,11 @@ import {
   assertThrows,
 } from "../../testing/asserts.ts";
 import { writeFile, writeFileSync } from "./_fs_writeFile.ts";
-import type { TextEncodings } from "./_fs_common.ts";
+import type { TextEncodings } from "../_utils.ts";
 import * as path from "../../path/mod.ts";
 
-const testDataDir = path.resolve(path.join("node", "_fs", "testdata"));
+const moduleDir = path.dirname(path.fromFileUrl(import.meta.url));
+const testDataDir = path.resolve(moduleDir, "testdata");
 const decoder = new TextDecoder("utf-8");
 
 Deno.test("Callback must be a function error", function fn() {
@@ -100,7 +101,7 @@ Deno.test(
       read: true,
     });
 
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       writeFile(file.rid, "hello world", (err) => {
         if (err) return reject(err);
         resolve();
@@ -206,7 +207,7 @@ Deno.test(
       read: true,
     });
 
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       writeFile(file.rid, "hello world", { mode: 0o777 }, (err) => {
         if (err) return reject(err);
         resolve();

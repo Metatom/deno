@@ -1,10 +1,10 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
-  unitTest,
   assert,
   assertEquals,
   assertNotEquals,
   assertThrows,
+  unitTest,
 } from "./test_util.ts";
 
 function delay(seconds: number): Promise<void> {
@@ -506,7 +506,7 @@ unitTest(async function transformStreamStartCalledOnce() {
 
 unitTest(function transformStreamReadableTypeThrows() {
   assertThrows(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // deno-lint-ignore no-explicit-any
     () => new TransformStream({ readableType: "bytes" as any }),
     RangeError,
     undefined,
@@ -516,7 +516,7 @@ unitTest(function transformStreamReadableTypeThrows() {
 
 unitTest(function transformStreamWirtableTypeThrows() {
   assertThrows(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // deno-lint-ignore no-explicit-any
     () => new TransformStream({ writableType: "bytes" as any }),
     RangeError,
     undefined,

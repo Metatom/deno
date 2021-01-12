@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 
 import { assert } from "../_util/assert.ts";
 
@@ -6,7 +6,7 @@ export interface Args {
   /** Contains all the arguments that didn't have an option associated with
    * them. */
   _: Array<string | number>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // deno-lint-ignore no-explicit-any
   [key: string]: any;
 }
 
@@ -277,7 +277,7 @@ export function parse(
         }
 
         if (/[A-Za-z]/.test(letters[j]) && /=/.test(next)) {
-          setArg(letters[j], next.split("=")[1], arg);
+          setArg(letters[j], next.split(/=(.+)/)[1], arg);
           broken = true;
           break;
         }

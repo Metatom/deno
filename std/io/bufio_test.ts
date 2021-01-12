@@ -1,23 +1,23 @@
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 // Based on https://github.com/golang/go/blob/891682/src/bufio/bufio_test.go
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 import { assert, assertEquals, fail } from "../testing/asserts.ts";
 import {
+  BufferFullError,
   BufReader,
   BufWriter,
   BufWriterSync,
-  BufferFullError,
   PartialReadError,
   ReadLineResult,
-  readStringDelim,
   readLines,
+  readStringDelim,
 } from "./bufio.ts";
 import * as iotest from "./_iotest.ts";
 import { StringReader } from "./readers.ts";
 import { StringWriter } from "./writers.ts";
-import { charCode } from "./util.ts";
-import { copyBytes } from "../bytes/mod.ts";
+import { copy } from "../bytes/mod.ts";
 
 const encoder = new TextEncoder();
 
@@ -139,7 +139,7 @@ Deno.test("bufioBufferFull", async function (): Promise<void> {
   const decoder = new TextDecoder();
 
   try {
-    await buf.readSlice(charCode("!"));
+    await buf.readSlice("!".charCodeAt(0));
     fail("readSlice should throw");
   } catch (err) {
     assert(err instanceof BufferFullError);
@@ -147,7 +147,7 @@ Deno.test("bufioBufferFull", async function (): Promise<void> {
     assertEquals(decoder.decode(err.partial), "And now, hello, ");
   }
 
-  const line = await buf.readSlice(charCode("!"));
+  const line = await buf.readSlice("!".charCodeAt(0));
   assert(line !== null);
   const actual = decoder.decode(line);
   assertEquals(actual, "world!");
@@ -201,7 +201,7 @@ class TestReader implements Deno.Reader {
     if (nread === 0) {
       return Promise.resolve(null);
     }
-    copyBytes(this.data, buf as Uint8Array);
+    copy(this.data, buf as Uint8Array);
     this.data = this.data.subarray(nread);
     return Promise.resolve(nread);
   }
@@ -331,7 +331,7 @@ Deno.test("bufioWriter", async function (): Promise<void> {
 
   for (let i = 0; i < data.byteLength; i++) {
     // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
-    data[i] = charCode(" ") + (i % (charCode("~") - charCode(" ")));
+    data[i] = " ".charCodeAt(0) + (i % ("~".charCodeAt(0) - " ".charCodeAt(0)));
   }
 
   const w = new Deno.Buffer();
@@ -365,7 +365,7 @@ Deno.test("bufioWriterSync", function (): void {
 
   for (let i = 0; i < data.byteLength; i++) {
     // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
-    data[i] = charCode(" ") + (i % (charCode("~") - charCode(" ")));
+    data[i] = " ".charCodeAt(0) + (i % ("~".charCodeAt(0) - " ".charCodeAt(0)));
   }
 
   const w = new Deno.Buffer();
@@ -436,12 +436,24 @@ Deno.test("readStringDelimAndLines", async function (): Promise<void> {
   assertEquals(chunks_, ["Hello World", "Hello World 2", "Hello World 3"]);
 
   const linesData = new Deno.Buffer(enc.encode("0\n1\n2\n3\n4\n5\n6\n7\n8\n9"));
+  // consider data with windows newlines too
+  const linesDataWindows = new Deno.Buffer(
+    enc.encode("0\r\n1\r\n2\r\n3\r\n4\r\n5\r\n6\r\n7\r\n8\r\n9"),
+  );
   const lines_ = [];
 
   for await (const l of readLines(linesData)) {
     lines_.push(l);
   }
 
+  assertEquals(lines_.length, 10);
+  assertEquals(lines_, ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+
+  // Now test for "windows" lines
+  lines_.length = 0;
+  for await (const l of readLines(linesDataWindows)) {
+    lines_.push(l);
+  }
   assertEquals(lines_.length, 10);
   assertEquals(lines_, ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
 });

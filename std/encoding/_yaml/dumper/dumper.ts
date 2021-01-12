@@ -1,9 +1,7 @@
 // Ported from js-yaml v3.13.1:
 // https://github.com/nodeca/js-yaml/commit/665aadda42349dcae869f12040d9b10ef18d12da
 // Copyright 2011-2015 by Vitaly Puzrin. All rights reserved. MIT license.
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
-
-/* eslint-disable max-len */
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 
 import { YAMLError } from "../error.ts";
 import type { RepresentFn, StyleVariant, Type } from "../type.ts";
@@ -499,7 +497,9 @@ function writeScalar(
         return `'${string.replace(/'/g, "''")}'`;
       case STYLE_LITERAL:
         return `|${blockHeader(string, state.indent)}${
-          dropEndingNewline(indentString(string, indent))
+          dropEndingNewline(
+            indentString(string, indent),
+          )
         }`;
       case STYLE_FOLDED:
         return `>${blockHeader(string, state.indent)}${
@@ -867,7 +867,10 @@ function inspectNode(
   }
 }
 
-function getDuplicateReferences(object: object, state: DumperState): void {
+function getDuplicateReferences(
+  object: Record<string, unknown>,
+  state: DumperState,
+): void {
   const objects: Any[] = [],
     duplicatesIndexes: number[] = [];
 

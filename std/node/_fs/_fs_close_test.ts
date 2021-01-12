@@ -1,5 +1,5 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
-import { fail, assert, assertThrows } from "../../testing/asserts.ts";
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
+import { assert, assertThrows, fail } from "../../testing/asserts.ts";
 import { close, closeSync } from "./_fs_close.ts";
 
 Deno.test({
@@ -9,7 +9,7 @@ Deno.test({
     const file: Deno.File = await Deno.open(tempFile);
 
     assert(Deno.resources()[file.rid]);
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       close(file.rid, (err) => {
         if (err !== null) reject();
         else resolve();
@@ -30,7 +30,7 @@ Deno.test({
 Deno.test({
   name: "ASYNC: Invalid fd",
   async fn() {
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       close(-1, (err) => {
         if (err !== null) return resolve();
         reject();
@@ -46,7 +46,7 @@ Deno.test({
     const file: Deno.File = Deno.openSync(tempFile);
 
     let foo: string;
-    const promise = new Promise((resolve) => {
+    const promise = new Promise<void>((resolve) => {
       close(file.rid, () => {
         assert(foo === "bar");
         resolve();

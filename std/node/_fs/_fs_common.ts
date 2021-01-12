@@ -1,21 +1,12 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
-
-import { notImplemented } from "../_utils.ts";
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
+import {
+  BinaryEncodings,
+  Encodings,
+  notImplemented,
+  TextEncodings,
+} from "../_utils.ts";
 
 export type CallbackWithError = (err?: Error | null) => void;
-
-export type TextEncodings =
-  | "ascii"
-  | "utf8"
-  | "utf-8"
-  | "utf16le"
-  | "ucs2"
-  | "ucs-2"
-  | "base64"
-  | "latin1"
-  | "hex";
-export type BinaryEncodings = "binary";
-export type Encodings = TextEncodings | BinaryEncodings;
 
 export interface FileOptions {
   encoding?: Encodings;
@@ -47,7 +38,13 @@ export function isFileOptions(
 }
 
 export function getEncoding(
-  optOrCallback?: FileOptions | WriteFileOptions | Function | Encodings | null,
+  optOrCallback?:
+    | FileOptions
+    | WriteFileOptions
+    // deno-lint-ignore no-explicit-any
+    | ((...args: any[]) => any)
+    | Encodings
+    | null,
 ): Encodings | null {
   if (!optOrCallback || typeof optOrCallback === "function") {
     return null;
@@ -144,14 +141,17 @@ export function getOpenOptions(flag: string | undefined): Deno.OpenOptions {
     case "as": {
       // 'as': Open file for appending in synchronous mode. The file is created if it does not exist.
       openOptions = { create: true, append: true };
+      break;
     }
     case "as+": {
       // 'as+': Open file for reading and appending in synchronous mode. The file is created if it does not exist.
       openOptions = { create: true, read: true, append: true };
+      break;
     }
     case "rs+": {
       // 'rs+': Open file for reading and writing in synchronous mode. Instructs the operating system to bypass the local file system cache.
       openOptions = { create: true, read: true, write: true };
+      break;
     }
     default: {
       throw new Error(`Unrecognized file system flag: ${flag}`);

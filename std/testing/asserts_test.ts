@@ -1,22 +1,26 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
   _format,
   assert,
-  assertNotEquals,
-  assertStringContains,
-  assertArrayContains,
-  assertMatch,
+  assertArrayIncludes,
   assertEquals,
+  assertExists,
+  AssertionError,
+  assertMatch,
+  assertNotEquals,
+  assertNotMatch,
+  assertNotStrictEquals,
+  assertObjectMatch,
   assertStrictEquals,
+  assertStringIncludes,
   assertThrows,
   assertThrowsAsync,
-  AssertionError,
   equal,
   fail,
   unimplemented,
   unreachable,
 } from "./asserts.ts";
-import { red, green, gray, bold, yellow, stripColor } from "../fmt/colors.ts";
+import { bold, gray, green, red, stripColor, yellow } from "../fmt/colors.ts";
 
 Deno.test("testingEqual", function (): void {
   assert(equal("world", "world"));
@@ -48,6 +52,9 @@ Deno.test("testingEqual", function (): void {
       new Date(2019, 0, 3, 4, 20, 1, 20),
     ),
   );
+  assert(equal(new Date("Invalid"), new Date("Invalid")));
+  assert(!equal(new Date("Invalid"), new Date(2019, 0, 3)));
+  assert(!equal(new Date("Invalid"), new Date(2019, 0, 3, 4, 20, 1, 10)));
   assert(equal(new Set([1]), new Set([1])));
   assert(!equal(new Set([1]), new Set([2])));
   assert(equal(new Set([1, 2, 3]), new Set([3, 2, 1])));
@@ -139,6 +146,10 @@ Deno.test("testingNotEquals", function (): void {
     new Date(2019, 0, 3, 4, 20, 1, 10),
     new Date(2019, 0, 3, 4, 20, 1, 20),
   );
+  assertNotEquals(
+    new Date("invalid"),
+    new Date(2019, 0, 3, 4, 20, 1, 20),
+  );
   let didThrow;
   try {
     assertNotEquals("Raptor", "Raptor");
@@ -150,13 +161,41 @@ Deno.test("testingNotEquals", function (): void {
   assertEquals(didThrow, true);
 });
 
-Deno.test("testingAssertStringContains", function (): void {
-  assertStringContains("Denosaurus", "saur");
-  assertStringContains("Denosaurus", "Deno");
-  assertStringContains("Denosaurus", "rus");
+Deno.test("testingAssertExists", function (): void {
+  assertExists("Denosaurus");
+  assertExists(false);
+  assertExists(0);
+  assertExists("");
+  assertExists(-0);
+  assertExists(0);
+  assertExists(NaN);
   let didThrow;
   try {
-    assertStringContains("Denosaurus", "Raptor");
+    assertExists(undefined);
+    didThrow = false;
+  } catch (e) {
+    assert(e instanceof AssertionError);
+    didThrow = true;
+  }
+  assertEquals(didThrow, true);
+  didThrow = false;
+  try {
+    assertExists(null);
+    didThrow = false;
+  } catch (e) {
+    assert(e instanceof AssertionError);
+    didThrow = true;
+  }
+  assertEquals(didThrow, true);
+});
+
+Deno.test("testingAssertStringContains", function (): void {
+  assertStringIncludes("Denosaurus", "saur");
+  assertStringIncludes("Denosaurus", "Deno");
+  assertStringIncludes("Denosaurus", "rus");
+  let didThrow;
+  try {
+    assertStringIncludes("Denosaurus", "Raptor");
     didThrow = false;
   } catch (e) {
     assert(e instanceof AssertionError);
@@ -168,14 +207,14 @@ Deno.test("testingAssertStringContains", function (): void {
 Deno.test("testingArrayContains", function (): void {
   const fixture = ["deno", "iz", "luv"];
   const fixtureObject = [{ deno: "luv" }, { deno: "Js" }];
-  assertArrayContains(fixture, ["deno"]);
-  assertArrayContains(fixtureObject, [{ deno: "luv" }]);
-  assertArrayContains(
+  assertArrayIncludes(fixture, ["deno"]);
+  assertArrayIncludes(fixtureObject, [{ deno: "luv" }]);
+  assertArrayIncludes(
     Uint8Array.from([1, 2, 3, 4]),
     Uint8Array.from([1, 2, 3]),
   );
   assertThrows(
-    (): void => assertArrayContains(fixtureObject, [{ deno: "node" }]),
+    (): void => assertArrayIncludes(fixtureObject, [{ deno: "node" }]),
     AssertionError,
     `actual: "[
   {
@@ -184,7 +223,7 @@ Deno.test("testingArrayContains", function (): void {
   {
     deno: "Js",
   },
-]" expected to contain: "[
+]" expected to include: "[
   {
     deno: "node",
   },
@@ -200,7 +239,7 @@ missing: [
 Deno.test("testingAssertStringContainsThrow", function (): void {
   let didThrow = false;
   try {
-    assertStringContains("Denosaurus from Jurassic", "Raptor");
+    assertStringIncludes("Denosaurus from Jurassic", "Raptor");
   } catch (e) {
     assert(
       e.message ===
@@ -229,6 +268,199 @@ Deno.test("testingAssertStringMatchingThrows", function (): void {
     didThrow = true;
   }
   assert(didThrow);
+});
+
+Deno.test("testingAssertStringNotMatching", function (): void {
+  assertNotMatch("foobar.deno.com", RegExp(/[a-zA-Z]+@[a-zA-Z]+.com/));
+});
+
+Deno.test("testingAssertStringNotMatchingThrows", function (): void {
+  let didThrow = false;
+  try {
+    assertNotMatch("Denosaurus from Jurassic", RegExp(/from/));
+  } catch (e) {
+    assert(
+      e.message ===
+        `actual: "Denosaurus from Jurassic" expected to not match: "/from/"`,
+    );
+    assert(e instanceof AssertionError);
+    didThrow = true;
+  }
+  assert(didThrow);
+});
+
+Deno.test("testingAssertObjectMatching", function (): void {
+  const sym = Symbol("foo");
+  const a = { foo: true, bar: false };
+  const b = { ...a, baz: a };
+  const c = { ...b, qux: b };
+  const d = { corge: c, grault: c };
+  const e = { foo: true } as { [key: string]: unknown };
+  e.bar = e;
+  const f = { [sym]: true, bar: false };
+  // Simple subset
+  assertObjectMatch(a, {
+    foo: true,
+  });
+  // Subset with another subset
+  assertObjectMatch(b, {
+    foo: true,
+    baz: { bar: false },
+  });
+  // Subset with multiple subsets
+  assertObjectMatch(c, {
+    foo: true,
+    baz: { bar: false },
+    qux: {
+      baz: { foo: true },
+    },
+  });
+  // Subset with same object reference as subset
+  assertObjectMatch(d, {
+    corge: {
+      foo: true,
+      qux: { bar: false },
+    },
+    grault: {
+      bar: false,
+      qux: { foo: true },
+    },
+  });
+  // Subset with circular reference
+  assertObjectMatch(e, {
+    foo: true,
+    bar: {
+      bar: {
+        bar: {
+          foo: true,
+        },
+      },
+    },
+  });
+  // Subset with same symbol
+  assertObjectMatch(f, {
+    [sym]: true,
+  });
+  // Missing key
+  {
+    let didThrow;
+    try {
+      assertObjectMatch({
+        foo: true,
+      }, {
+        foo: true,
+        bar: false,
+      });
+      didThrow = false;
+    } catch (e) {
+      assert(e instanceof AssertionError);
+      didThrow = true;
+    }
+    assertEquals(didThrow, true);
+  }
+  // Simple subset
+  {
+    let didThrow;
+    try {
+      assertObjectMatch(a, {
+        foo: false,
+      });
+      didThrow = false;
+    } catch (e) {
+      assert(e instanceof AssertionError);
+      didThrow = true;
+    }
+    assertEquals(didThrow, true);
+  }
+  // Subset with another subset
+  {
+    let didThrow;
+    try {
+      assertObjectMatch(b, {
+        foo: true,
+        baz: { bar: true },
+      });
+      didThrow = false;
+    } catch (e) {
+      assert(e instanceof AssertionError);
+      didThrow = true;
+    }
+    assertEquals(didThrow, true);
+  }
+  // Subset with multiple subsets
+  {
+    let didThrow;
+    try {
+      assertObjectMatch(c, {
+        foo: true,
+        baz: { bar: false },
+        qux: {
+          baz: { foo: false },
+        },
+      });
+      didThrow = false;
+    } catch (e) {
+      assert(e instanceof AssertionError);
+      didThrow = true;
+    }
+    assertEquals(didThrow, true);
+  }
+  // Subset with same object reference as subset
+  {
+    let didThrow;
+    try {
+      assertObjectMatch(d, {
+        corge: {
+          foo: true,
+          qux: { bar: true },
+        },
+        grault: {
+          bar: false,
+          qux: { foo: false },
+        },
+      });
+      didThrow = false;
+    } catch (e) {
+      assert(e instanceof AssertionError);
+      didThrow = true;
+    }
+    assertEquals(didThrow, true);
+  }
+  // Subset with circular reference
+  {
+    let didThrow;
+    try {
+      assertObjectMatch(e, {
+        foo: true,
+        bar: {
+          bar: {
+            bar: {
+              foo: false,
+            },
+          },
+        },
+      });
+      didThrow = false;
+    } catch (e) {
+      assert(e instanceof AssertionError);
+      didThrow = true;
+    }
+    assertEquals(didThrow, true);
+  }
+  // Subset with symbol key but with string key subset
+  {
+    let didThrow;
+    try {
+      assertObjectMatch(f, {
+        foo: true,
+      });
+      didThrow = false;
+    } catch (e) {
+      assert(e instanceof AssertionError);
+      didThrow = true;
+    }
+    assertEquals(didThrow, true);
+  }
 });
 
 Deno.test("testingAssertsUnimplemented", function (): void {
@@ -300,14 +532,18 @@ const createHeader = (): string[] => [
   "",
   "",
   `    ${gray(bold("[Diff]"))} ${red(bold("Actual"))} / ${
-    green(bold("Expected"))
+    green(
+      bold("Expected"),
+    )
   }`,
   "",
   "",
 ];
 
-const added: (s: string) => string = (s: string): string => green(bold(s));
-const removed: (s: string) => string = (s: string): string => red(bold(s));
+const added: (s: string) => string = (s: string): string =>
+  green(bold(stripColor(s)));
+const removed: (s: string) => string = (s: string): string =>
+  red(bold(stripColor(s)));
 
 Deno.test({
   name: "pass case",
@@ -317,6 +553,7 @@ Deno.test({
     assertEquals(10, 10);
     assertEquals("abc", "abc");
     assertEquals({ a: 10, b: { c: "1" } }, { a: 10, b: { c: "1" } });
+    assertEquals(new Date("invalid"), new Date("invalid"));
   },
 });
 
@@ -408,6 +645,21 @@ Deno.test({
         "",
       ].join("\n"),
     );
+    assertThrows(
+      (): void =>
+        assertEquals(
+          new Date("invalid"),
+          new Date(2019, 0, 3, 4, 20, 1, 20),
+        ),
+      AssertionError,
+      [
+        "Values are not equal:",
+        ...createHeader(),
+        removed(`-   ${new Date("invalid")}`),
+        added(`+   ${new Date(2019, 0, 3, 4, 20, 1, 20).toISOString()}`),
+        "",
+      ].join("\n"),
+    );
   },
 });
 
@@ -463,13 +715,40 @@ Deno.test({
 });
 
 Deno.test({
-  name: "assert* functions with specified type paratemeter",
+  name: "strictly unequal pass case",
+  fn(): void {
+    assertNotStrictEquals(true, false);
+    assertNotStrictEquals(10, 11);
+    assertNotStrictEquals("abc", "xyz");
+    assertNotStrictEquals(1, "1");
+
+    const xs = [1, false, "foo"];
+    const ys = [1, true, "bar"];
+    assertNotStrictEquals(xs, ys);
+
+    const x = { a: 1 };
+    const y = { a: 2 };
+    assertNotStrictEquals(x, y);
+  },
+});
+
+Deno.test({
+  name: "strictly unequal fail case",
+  fn(): void {
+    assertThrows(() => assertNotStrictEquals(1, 1), AssertionError);
+  },
+});
+
+Deno.test({
+  name: "assert* functions with specified type parameter",
   fn(): void {
     assertEquals<string>("hello", "hello");
     assertNotEquals<number>(1, 2);
-    assertArrayContains<boolean>([true, false], [true]);
+    assertArrayIncludes<boolean>([true, false], [true]);
     const value = { x: 1 };
     assertStrictEquals<typeof value>(value, value);
+    // deno-lint-ignore ban-types
+    assertNotStrictEquals<object>(value, { x: 1 });
   },
 });
 

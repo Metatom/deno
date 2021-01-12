@@ -1,10 +1,10 @@
 // Ported from js-yaml v3.13.1:
 // https://github.com/nodeca/js-yaml/commit/665aadda42349dcae869f12040d9b10ef18d12da
 // Copyright 2011-2015 by Vitaly Puzrin. All rights reserved. MIT license.
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 
 import { StyleVariant, Type } from "../type.ts";
-import { isNegativeZero, Any } from "../utils.ts";
+import { Any, isNegativeZero } from "../utils.ts";
 
 const YAML_FLOAT_PATTERN = new RegExp(
   // 2.5e4, 2.5 and integers
@@ -103,7 +103,7 @@ function representYamlFloat(object: Any, style?: StyleVariant): Any {
   const res = object.toString(10);
 
   // JS stringifier can build scientific format without dots: 5e-100,
-  // while YAML requres dot: 5.e-100. Fix it with simple hack
+  // while YAML requires dot: 5.e-100. Fix it with simple hack
 
   return SCIENTIFIC_WITHOUT_DOT.test(res) ? res.replace("e", ".e") : res;
 }

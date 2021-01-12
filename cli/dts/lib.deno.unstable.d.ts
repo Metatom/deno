@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 
 /// <reference no-default-lib="true" />
 /// <reference lib="deno.ns" />
@@ -48,7 +48,7 @@ declare namespace Deno {
    * Gets the size of the console as columns/rows.
    *
    * ```ts
-   * const { columns, rows } = await Deno.consoleSize(Deno.stdout.rid);
+   * const { columns, rows } = Deno.consoleSize(Deno.stdout.rid);
    * ```
    */
   export function consoleSize(
@@ -130,6 +130,66 @@ declare namespace Deno {
    */
   export function osRelease(): string;
 
+  /** **Unstable** new API. yet to be vetted.
+   *
+   * Displays the total amount of free and used physical and swap memory in the
+   * system, as well as the buffers and caches used by the kernel.
+   *
+   * This is similar to the `free` command in Linux
+   *
+   * ```ts
+   * console.log(Deno.systemMemoryInfo());
+   * ```
+   *
+   * Requires `allow-env` permission.
+   *
+   */
+  export function systemMemoryInfo(): SystemMemoryInfo;
+
+  export interface SystemMemoryInfo {
+    /** Total installed memory */
+    total: number;
+    /** Unused memory */
+    free: number;
+    /** Estimation of how much memory is available  for  starting  new
+     * applications, without  swapping. Unlike the data provided by the cache or
+     * free fields, this field takes into account page cache and also that not
+     * all reclaimable memory slabs will be reclaimed due to items being in use
+     */
+    available: number;
+    /** Memory used by kernel buffers */
+    buffers: number;
+    /** Memory  used  by  the  page  cache  and  slabs */
+    cached: number;
+    /** Total swap memory */
+    swapTotal: number;
+    /** Unused swap memory */
+    swapFree: number;
+  }
+
+  /** **Unstable** new API. yet to be vetted.
+   *
+   * Returns the total number of logical cpus in the system along with
+   * the speed measured in MHz. If either the syscall to get the core
+   * count or speed of the cpu is unsuccessful the value of the it
+   * is undefined.
+   *
+   * ```ts
+   * console.log(Deno.systemCpuInfo());
+   * ```
+   *
+   * Requires `allow-env` permission.
+   *
+   */
+  export function systemCpuInfo(): SystemCpuInfo;
+
+  export interface SystemCpuInfo {
+    /** Total number of logical cpus in the system */
+    cores: number | undefined;
+    /** The speed of the cpu measured in MHz */
+    speed: number | undefined;
+  }
+
   /** **UNSTABLE**: new API, yet to be vetted.
    *
    * Open and initialize a plugin.
@@ -151,12 +211,10 @@ declare namespace Deno {
 
   /** The log category for a diagnostic message. */
   export enum DiagnosticCategory {
-    Log = 0,
-    Debug = 1,
-    Info = 2,
-    Error = 3,
-    Warning = 4,
-    Suggestion = 5,
+    Warning = 0,
+    Error = 1,
+    Suggestion = 2,
+    Message = 3,
   }
 
   export interface DiagnosticMessageChain {
@@ -166,37 +224,33 @@ declare namespace Deno {
     next?: DiagnosticMessageChain[];
   }
 
-  export interface DiagnosticItem {
+  export interface Diagnostic {
     /** A string message summarizing the diagnostic. */
-    message: string;
+    messageText?: string;
     /** An ordered array of further diagnostics. */
     messageChain?: DiagnosticMessageChain;
     /** Information related to the diagnostic. This is present when there is a
      * suggestion or other additional diagnostic information */
-    relatedInformation?: DiagnosticItem[];
+    relatedInformation?: Diagnostic[];
     /** The text of the source line related to the diagnostic. */
     sourceLine?: string;
-    /** The line number that is related to the diagnostic. */
-    lineNumber?: number;
-    /** The name of the script resource related to the diagnostic. */
-    scriptResourceName?: string;
-    /** The start position related to the diagnostic. */
-    startPosition?: number;
-    /** The end position related to the diagnostic. */
-    endPosition?: number;
+    source?: string;
+    /** The start position of the error. Zero based index. */
+    start?: {
+      line: number;
+      character: number;
+    };
+    /** The end position of the error.  Zero based index. */
+    end?: {
+      line: number;
+      character: number;
+    };
+    /** The filename of the resource related to the diagnostic message. */
+    fileName?: string;
     /** The category of the diagnostic. */
     category: DiagnosticCategory;
     /** A number identifier. */
     code: number;
-    /** The the start column of the sourceLine related to the diagnostic. */
-    startColumn?: number;
-    /** The end column of the sourceLine related to the diagnostic. */
-    endColumn?: number;
-  }
-
-  export interface Diagnostic {
-    /** An array of diagnostic items. */
-    items: DiagnosticItem[];
   }
 
   /** **UNSTABLE**: new API, yet to be vetted.
@@ -210,9 +264,9 @@ declare namespace Deno {
    * console.log(Deno.formatDiagnostics(diagnostics));  // User friendly output of diagnostics
    * ```
    *
-   * @param items An array of diagnostic items to format
+   * @param diagnostics An array of diagnostic items to format
    */
-  export function formatDiagnostics(items: DiagnosticItem[]): string;
+  export function formatDiagnostics(diagnostics: Diagnostic[]): string;
 
   /** **UNSTABLE**: new API, yet to be vetted.
    *
@@ -236,6 +290,8 @@ declare namespace Deno {
     /** Base directory to resolve non-relative module names. Defaults to
      * `undefined`. */
     baseUrl?: string;
+    /** The character set of the input files. Defaults to `"utf8"`. */
+    charset?: string;
     /** Report errors in `.js` files. Use in conjunction with `allowJs`. Defaults
      * to `false`. */
     checkJs?: boolean;
@@ -249,9 +305,6 @@ declare namespace Deno {
     /** Provide full support for iterables in `for..of`, spread and
      * destructuring when targeting ES5 or ES3. Defaults to `false`. */
     downlevelIteration?: boolean;
-    /** Emit a UTF-8 Byte Order Mark (BOM) in the beginning of output files.
-     * Defaults to `false`. */
-    emitBOM?: boolean;
     /** Only emit `.d.ts` declaration files. Defaults to `false`. */
     emitDeclarationOnly?: boolean;
     /** Emit design-type metadata for decorated declarations in source. See issue
@@ -262,29 +315,43 @@ declare namespace Deno {
      * ecosystem compatibility and enable `allowSyntheticDefaultImports` for type
      * system compatibility. Defaults to `true`. */
     esModuleInterop?: boolean;
-    /** Enables experimental support for ES decorators. Defaults to `false`. */
+    /** Enables experimental support for ES decorators. Defaults to `true`. */
     experimentalDecorators?: boolean;
+    /** Import emit helpers (e.g. `__extends`, `__rest`, etc..) from
+     * [tslib](https://www.npmjs.com/package/tslib). */
+    importHelpers?: boolean;
+    /** This flag controls how `import` works, there are 3 different options:
+     *
+     * - `remove`: The default behavior of dropping import statements which only
+     *   reference types.
+     * - `preserve`: Preserves all `import` statements whose values or types are
+     *   never used. This can cause imports/side-effects to be preserved.
+     * - `error`: This preserves all imports (the same as the preserve option),
+     *   but will error when a value import is only used as a type. This might
+     *   be useful if you want to ensure no values are being accidentally
+     *   imported, but still make side-effect imports explicit.
+     *
+     * This flag works because you can use `import type` to explicitly create an
+     * `import` statement which should never be emitted into JavaScript. */
+    importsNotUsedAsValues?: "remove" | "preserve" | "error";
     /** Emit a single file with source maps instead of having a separate file.
      * Defaults to `false`. */
     inlineSourceMap?: boolean;
     /** Emit the source alongside the source maps within a single file; requires
      * `inlineSourceMap` or `sourceMap` to be set. Defaults to `false`. */
     inlineSources?: boolean;
-    /** Perform additional checks to ensure that transpile only would be safe.
-     * Defaults to `false`. */
-    isolatedModules?: boolean;
     /** Support JSX in `.tsx` files: `"react"`, `"preserve"`, `"react-native"`.
      * Defaults to `"react"`. */
     jsx?: "react" | "preserve" | "react-native";
     /** Specify the JSX factory function to use when targeting react JSX emit,
      * e.g. `React.createElement` or `h`. Defaults to `React.createElement`. */
     jsxFactory?: string;
+    /** Specify the JSX fragment factory function to use when targeting react
+     * JSX emit, e.g. `Fragment`. Defaults to `React.Fragment`. */
+    jsxFragmentFactory?: string;
     /** Resolve keyof to string valued property names only (no numbers or
      * symbols). Defaults to `false`. */
     keyofStringsOnly?: string;
-    /** Emit class fields with ECMAScript-standard semantics. Defaults to `false`.
-     * Does not apply to `"esnext"` target. */
-    useDefineForClassFields?: boolean;
     /** List of library files to be included in the compilation. If omitted,
      * then the Deno main runtime libs are used. */
     lib?: string[];
@@ -325,20 +392,21 @@ declare namespace Deno {
     /** Do not emit `"use strict"` directives in module output. Defaults to
      * `false`. */
     noImplicitUseStrict?: boolean;
+    /** Do not include the default library file (`lib.d.ts`). Defaults to
+     * `false`. */
+    noLib?: boolean;
     /** Do not add triple-slash references or module import targets to the list of
      * compiled files. Defaults to `false`. */
     noResolve?: boolean;
     /** Disable strict checking of generic signatures in function types. Defaults
      * to `false`. */
     noStrictGenericChecks?: boolean;
+    /** Include 'undefined' in index signature results. Defaults to `false`. */
+    noUncheckedIndexedAccess?: boolean;
     /** Report errors on unused locals. Defaults to `false`. */
     noUnusedLocals?: boolean;
     /** Report errors on unused parameters. Defaults to `false`. */
     noUnusedParameters?: boolean;
-    /** Redirect output structure to the directory. This only impacts
-     * `Deno.compile` and only changes the emitted file names. Defaults to
-     * `undefined`. */
-    outDir?: string;
     /** List of path mapping entries for module names to locations relative to the
      * `baseUrl`. Defaults to `undefined`. */
     paths?: Record<string, string[]>;
@@ -348,8 +416,6 @@ declare namespace Deno {
     /** Remove all comments except copy-right header comments beginning with
      * `/*!`. Defaults to `true`. */
     removeComments?: boolean;
-    /** Include modules imported with `.json` extension. Defaults to `true`. */
-    resolveJsonModule?: boolean;
     /** Specifies the root directory of input files. Only use to control the
      * output directory structure with `outDir`. Defaults to `undefined`. */
     rootDir?: string;
@@ -364,6 +430,8 @@ declare namespace Deno {
      * specified will be embedded in the sourceMap to direct the debugger where
      * the source files will be located. Defaults to `undefined`. */
     sourceRoot?: string;
+    /** Skip type checking of all declaration files (`*.d.ts`). */
+    skipLibCheck?: boolean;
     /** Enable all strict type checking options. Enabling `strict` enables
      * `noImplicitAny`, `noImplicitThis`, `alwaysStrict`, `strictBindCallApply`,
      * `strictNullChecks`, `strictFunctionTypes` and
@@ -418,125 +486,83 @@ declare namespace Deno {
      * ```
      */
     types?: string[];
+    /** Emit class fields with ECMAScript-standard semantics. Defaults to
+     * `false`. */
+    useDefineForClassFields?: boolean;
   }
 
-  /** **UNSTABLE**: new API, yet to be vetted.
-   *
-   * The results of a transpile only command, where the `source` contains the
-   * emitted source, and `map` optionally contains the source map. */
-  export interface TranspileOnlyResult {
-    source: string;
-    map?: string;
+  interface ImportMap {
+    imports: Record<string, string>;
+    scopes?: Record<string, Record<string, string>>;
   }
 
-  /** **UNSTABLE**: new API, yet to be vetted.
-   *
-   * Takes a set of TypeScript sources and resolves to a map where the key was
-   * the original file name provided in sources and the result contains the
-   * `source` and optionally the `map` from the transpile operation. This does no
-   * type checking and validation, it effectively "strips" the types from the
-   * file.
-   *
-   * ```ts
-   * const results =  await Deno.transpileOnly({
-   *   "foo.ts": `const foo: string = "foo";`
-   * });
-   * ```
-   *
-   * @param sources A map where the key is the filename and the value is the text
-   *                to transpile. The filename is only used in the transpile and
-   *                not resolved, for example to fill in the source name in the
-   *                source map.
-   * @param options An option object of options to send to the compiler. This is
-   *                a subset of ts.CompilerOptions which can be supported by Deno.
-   *                Many of the options related to type checking and emitting
-   *                type declaration files will have no impact on the output.
-   */
-  export function transpileOnly(
-    sources: Record<string, string>,
-    options?: CompilerOptions,
-  ): Promise<Record<string, TranspileOnlyResult>>;
+  interface EmitOptions {
+    /** Indicate that the source code should be emitted to a single file
+     * JavaScript bundle that is an ES module (`"esm"`). */
+    bundle?: "esm";
+    /** If `true` then the sources will be typed checked, returning any
+     * diagnostic errors in the result.  If `false` type checking will be
+     * skipped.  Defaults to `true`.
+     * 
+     * *Note* by default, only TypeScript will be type checked, just like on
+     * the command line.  Use the `compilerOptions` options of `checkJs` to
+     * enable type checking of JavaScript. */
+    check?: boolean;
+    /** A set of options that are aligned to TypeScript compiler options that
+     * are supported by Deno. */
+    compilerOptions?: CompilerOptions;
+    /** An [import-map](https://deno.land/manual/linking_to_external_code/import_maps#import-maps)
+     * which will be applied to the imports. */
+    importMap?: ImportMap;
+    /** An absolute path to an [import-map](https://deno.land/manual/linking_to_external_code/import_maps#import-maps).
+     * Required to be specified if an `importMap` is specified to be able to
+     * determine resolution of relative paths. If a `importMap` is not
+     * specified, then it will assumed the file path points to an import map on
+     * disk and will be attempted to be loaded based on current runtime
+     * permissions.
+     */
+    importMapPath?: string;
+    /** A record of sources to use when doing the emit.  If provided, Deno will
+     * use these sources instead of trying to resolve the modules externally. */
+    sources?: Record<string, string>;
+  }
 
-  /** **UNSTABLE**: new API, yet to be vetted.
-   *
-   * Takes a root module name, and optionally a record set of sources. Resolves
-   * with a compiled set of modules and possibly diagnostics if the compiler
-   * encountered any issues. If just a root name is provided, the modules
-   * will be resolved as if the root module had been passed on the command line.
-   *
-   * If sources are passed, all modules will be resolved out of this object, where
-   * the key is the module name and the value is the content. The extension of
-   * the module name will be used to determine the media type of the module.
-   *
-   * ```ts
-   * const [ maybeDiagnostics1, output1 ] = await Deno.compile("foo.ts");
-   *
-   * const [ maybeDiagnostics2, output2 ] = await Deno.compile("/foo.ts", {
-   *   "/foo.ts": `export * from "./bar.ts";`,
-   *   "/bar.ts": `export const bar = "bar";`
-   * });
-   * ```
-   *
-   * @param rootName The root name of the module which will be used as the
-   *                 "starting point". If no `sources` is specified, Deno will
-   *                 resolve the module externally as if the `rootName` had been
-   *                 specified on the command line.
-   * @param sources An optional key/value map of sources to be used when resolving
-   *                modules, where the key is the module name, and the value is
-   *                the source content. The extension of the key will determine
-   *                the media type of the file when processing. If supplied,
-   *                Deno will not attempt to resolve any modules externally.
-   * @param options An optional object of options to send to the compiler. This is
-   *                a subset of ts.CompilerOptions which can be supported by Deno.
-   */
-  export function compile(
-    rootName: string,
-    sources?: Record<string, string>,
-    options?: CompilerOptions,
-  ): Promise<[DiagnosticItem[] | undefined, Record<string, string>]>;
+  interface EmitResult {
+    /** Diagnostic messages returned from the type checker (`tsc`). */
+    diagnostics: Diagnostic[];
+    /** Any emitted files.  If bundled, then the JavaScript will have the
+     * key of `deno:///bundle.js` with an optional map (based on
+     * `compilerOptions`) in `deno:///bundle.js.map`. */
+    files: Record<string, string>;
+    /** An optional array of any compiler options that were ignored by Deno. */
+    ignoredOptions?: string[];
+    /** An array of internal statistics related to the emit, for diagnostic
+     * purposes. */
+    stats: Array<[string, number]>;
+  }
 
-  /** **UNSTABLE**: new API, yet to be vetted.
-   *
-   * `bundle()` is part the compiler API.  A full description of this functionality
-   * can be found in the [manual](https://deno.land/manual/runtime/compiler_apis#denobundle).
-   *
-   * Takes a root module name, and optionally a record set of sources. Resolves
-   * with a single JavaScript string (and bundle diagnostics if issues arise with
-   * the bundling) that is like the output of a `deno bundle` command. If just
-   * a root name is provided, the modules will be resolved as if the root module
-   * had been passed on the command line.
-   *
-   * If sources are passed, all modules will be resolved out of this object, where
-   * the key is the module name and the value is the content. The extension of the
-   * module name will be used to determine the media type of the module.
-   *
-   * ```ts
-   * // equivalent to "deno bundle foo.ts" from the command line
-   * const [ maybeDiagnostics1, output1 ] = await Deno.bundle("foo.ts");
-   *
-   * const [ maybeDiagnostics2, output2 ] = await Deno.bundle("/foo.ts", {
-   *   "/foo.ts": `export * from "./bar.ts";`,
-   *   "/bar.ts": `export const bar = "bar";`
-   * });
-   * ```
-   *
-   * @param rootName The root name of the module which will be used as the
-   *                 "starting point". If no `sources` is specified, Deno will
-   *                 resolve the module externally as if the `rootName` had been
-   *                 specified on the command line.
-   * @param sources An optional key/value map of sources to be used when resolving
-   *                modules, where the key is the module name, and the value is
-   *                the source content. The extension of the key will determine
-   *                the media type of the file when processing. If supplied,
-   *                Deno will not attempt to resolve any modules externally.
-   * @param options An optional object of options to send to the compiler. This is
-   *                a subset of ts.CompilerOptions which can be supported by Deno.
+  /**
+   * **UNSTABLE**: new API, yet to be vetted.
+   * 
+   * Similar to the command line functionality of `deno run` or `deno cache`,
+   * `Deno.emit()` provides a way to provide Deno arbitrary JavaScript
+   * or TypeScript and have it return JavaScript based on the options and
+   * settings provided. The source code can either be provided or the modules
+   * can be fetched and resolved in line with the behavior of the command line.
+   * 
+   * Requires `allow-read` and/or `allow-net` if sources are not provided.
+   * 
+   * @param rootSpecifier The specifier that will be used as the entry point.
+   *                      If no sources are provided, then the specifier would
+   *                      be the same as if you typed it on the command line for
+   *                      `deno run`. If sources are provided, it should match
+   *                      one of the names of the sources.
+   * @param options  A set of options to be used with the emit.
    */
-  export function bundle(
-    rootName: string,
-    sources?: Record<string, string>,
-    options?: CompilerOptions,
-  ): Promise<[DiagnosticItem[] | undefined, string]>;
+  export function emit(
+    rootSpecifier: string | URL,
+    options?: EmitOptions,
+  ): Promise<EmitResult>;
 
   /** **UNSTABLE**: Should not have same name as `window.location` type. */
   interface Location {
@@ -749,6 +775,10 @@ declare namespace Deno {
     windowChange: () => SignalStream;
   };
 
+  export type SetRawOptions = {
+    cbreak: boolean;
+  };
+
   /** **UNSTABLE**: new API, yet to be vetted
    *
    * Set TTY to be under raw mode or not. In raw mode, characters are read and
@@ -757,11 +787,19 @@ declare namespace Deno {
    * Reading from a TTY device in raw mode is faster than reading from a TTY
    * device in canonical mode.
    *
+   * The `cbreak` option can be used to indicate that characters that correspond
+   * to a signal should still be generated. When disabling raw mode, this option
+   * is ignored. This functionality currently only works on Linux and Mac OS.
+   *
    * ```ts
-   * Deno.setRaw(myTTY.rid, true);
+   * Deno.setRaw(myTTY.rid, true, { cbreak: true });
    * ```
    */
-  export function setRaw(rid: number, mode: boolean): void;
+  export function setRaw(
+    rid: number,
+    mode: boolean,
+    options?: SetRawOptions,
+  ): void;
 
   /** **UNSTABLE**: needs investigation into high precision time.
    *
@@ -963,7 +1001,7 @@ declare namespace Deno {
    * identified by `pid`.
    *
    *      const p = Deno.run({
-   *        cmd: ["python", "-c", "from time import sleep; sleep(10000)"]
+   *        cmd: ["sleep", "10000"]
    *      });
    *
    *      Deno.kill(p.pid, Deno.Signal.SIGINT);
@@ -1007,13 +1045,12 @@ declare namespace Deno {
 
   export interface NetPermissionDescriptor {
     name: "net";
-    /** Optional url associated with this descriptor.
+    /** Optional host string of the form `"<hostname>[:<port>]"`. Examples:
      *
-     * If specified: must be a valid url. Expected format: <scheme>://<host_or_ip>[:port][/path]
-     * If the scheme is unknown, callers should specify some scheme, such as x:// na:// unknown://
-     *
-     * See: https://www.iana.org/assignments/uri-schemes/uri-schemes.xhtml */
-    url?: string;
+     *      "github.com"
+     *      "deno.land:8080"
+     */
+    host?: string;
   }
 
   export interface EnvPermissionDescriptor {
@@ -1065,7 +1102,7 @@ declare namespace Deno {
      * ```ts
      * const status = await Deno.permissions.request({ name: "env" });
      * if (status.state === "granted") {
-     *   console.log(Deno.dir("home");
+     *   console.log("'env' permission is granted.");
      * } else {
      *   console.log("'env' permission is denied.");
      * }
@@ -1082,7 +1119,7 @@ declare namespace Deno {
   /** see: https://w3c.github.io/permissions/#permissionstatus */
   export class PermissionStatus {
     state: PermissionState;
-    constructor(state: PermissionState);
+    constructor();
   }
 
   /**  **UNSTABLE**: New API, yet to be vetted.  Additional consideration is still
@@ -1097,9 +1134,6 @@ declare namespace Deno {
    *  Requires `allow-env` permission.
    */
   export function hostname(): string;
-
-  /** **UNSTABLE**: The URL of the file that was originally executed from the command-line. */
-  export const mainModule: string;
 
   /** **UNSTABLE**: new API, yet to be vetted.
    * Synchronously truncates or extends the specified file stream, to reach the
@@ -1142,52 +1176,6 @@ declare namespace Deno {
    */
   export function ftruncate(rid: number, len?: number): Promise<void>;
 
-  /* **UNSTABLE**: New API, yet to be vetted.
-   * Synchronously flushes any pending data operations of the given file stream to disk.
-   *  ```ts
-   * const file = Deno.openSync("my_file.txt", { read: true, write: true, create: true });
-   * Deno.writeSync(file.rid, new TextEncoder().encode("Hello World"));
-   * Deno.fdatasyncSync(file.rid);
-   * console.log(new TextDecoder().decode(Deno.readFileSync("my_file.txt"))); // Hello World
-   * ```
-   */
-  export function fdatasyncSync(rid: number): void;
-
-  /** **UNSTABLE**: New API, yet to be vetted.
-   * Flushes any pending data operations of the given file stream to disk.
-   *  ```ts
-   * const file = await Deno.open("my_file.txt", { read: true, write: true, create: true });
-   * await Deno.write(file.rid, new TextEncoder().encode("Hello World"));
-   * await Deno.fdatasync(file.rid);
-   * console.log(new TextDecoder().decode(await Deno.readFile("my_file.txt"))); // Hello World
-   * ```
-   */
-  export function fdatasync(rid: number): Promise<void>;
-
-  /** **UNSTABLE**: New API, yet to be vetted.
-   * Synchronously flushes any pending data and metadata operations of the given file stream to disk.
-   *  ```ts
-   * const file = Deno.openSync("my_file.txt", { read: true, write: true, create: true });
-   * Deno.writeSync(file.rid, new TextEncoder().encode("Hello World"));
-   * Deno.ftruncateSync(file.rid, 1);
-   * Deno.fsyncSync(file.rid);
-   * console.log(new TextDecoder().decode(Deno.readFileSync("my_file.txt"))); // H
-   * ```
-   */
-  export function fsyncSync(rid: number): void;
-
-  /** **UNSTABLE**: New API, yet to be vetted.
-   * Flushes any pending data and metadata operations of the given file stream to disk.
-   *  ```ts
-   * const file = await Deno.open("my_file.txt", { read: true, write: true, create: true });
-   * await Deno.write(file.rid, new TextEncoder().encode("Hello World"));
-   * await Deno.ftruncate(file.rid, 1);
-   * await Deno.fsync(file.rid);
-   * console.log(new TextDecoder().decode(await Deno.readFile("my_file.txt"))); // H
-   * ```
-   */
-  export function fsync(rid: number): Promise<void>;
-
   /** **UNSTABLE**: New API, yet to be vetted.
    * Synchronously returns a `Deno.FileInfo` for the given file stream.
    *
@@ -1214,4 +1202,88 @@ declare namespace Deno {
    * The pid of the current process's parent.
    */
   export const ppid: number;
+
+  /** **UNSTABLE**: New API, yet to be vetted.
+   * A custom HttpClient for use with `fetch`.
+   *
+   * ```ts
+   * const client = new Deno.createHttpClient({ caFile: "./ca.pem" });
+   * const req = await fetch("https://myserver.com", { client });
+   * ```
+   */
+  export class HttpClient {
+    rid: number;
+    close(): void;
+  }
+
+  /** **UNSTABLE**: New API, yet to be vetted.
+   * The options used when creating a [HttpClient].
+   */
+  interface CreateHttpClientOptions {
+    /** A certificate authority to use when validating TLS certificates. Certificate data must be PEM encoded.
+     */
+    caData?: string;
+  }
+
+  /** **UNSTABLE**: New API, yet to be vetted.
+   * Create a custom HttpClient for to use with `fetch`.
+   *
+   * ```ts
+   * const client = new Deno.createHttpClient({ caFile: "./ca.pem" });
+   * const req = await fetch("https://myserver.com", { client });
+   * ```
+   */
+  export function createHttpClient(
+    options: CreateHttpClientOptions,
+  ): HttpClient;
+
+  /** **UNSTABLE**: needs investigation into high precision time.
+   *
+   * Synchronously changes the access (`atime`) and modification (`mtime`) times
+   * of a file stream resource referenced by `rid`. Given times are either in
+   * seconds (UNIX epoch time) or as `Date` objects.
+   *
+   * ```ts
+   * const file = Deno.openSync("file.txt", { create: true });
+   * Deno.futimeSync(file.rid, 1556495550, new Date());
+   * ```
+   */
+  export function futimeSync(
+    rid: number,
+    atime: number | Date,
+    mtime: number | Date,
+  ): void;
+
+  /** **UNSTABLE**: needs investigation into high precision time.
+   *
+   * Changes the access (`atime`) and modification (`mtime`) times of a file
+   * stream resource referenced by `rid`. Given times are either in seconds
+   * (UNIX epoch time) or as `Date` objects.
+   *
+   * ```ts
+   * const file = await Deno.open("file.txt", { create: true });
+   * await Deno.futime(file.rid, 1556495550, new Date());
+   * ```
+   */
+  export function futime(
+    rid: number,
+    atime: number | Date,
+    mtime: number | Date,
+  ): Promise<void>;
+
+  /** *UNSTABLE**: new API, yet to be vetted.
+   *
+   * SleepSync puts the main thread to sleep synchronously for a given amount of
+   * time in milliseconds.
+   *
+   * ```ts
+   * Deno.sleepSync(10);
+   * ```
+   */
+  export function sleepSync(millis: number): Promise<void>;
 }
+
+declare function fetch(
+  input: Request | URL | string,
+  init?: RequestInit & { client: Deno.HttpClient },
+): Promise<Response>;

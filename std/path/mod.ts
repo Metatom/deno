@@ -1,8 +1,8 @@
 // Copyright the Browserify authors. MIT License.
 // Ported mostly from https://github.com/browserify/path-browserify/
-/** This module is browser compatible. */
+// This module is browser compatible.
 
-import { isWindows } from "./_constants.ts";
+import { isWindows } from "../_util/os.ts";
 import * as _win32 from "./win32.ts";
 import * as _posix from "./posix.ts";
 
@@ -24,6 +24,7 @@ export const {
   relative,
   resolve,
   sep,
+  toFileUrl,
   toNamespacedPath,
 } = path;
 

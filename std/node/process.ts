@@ -1,3 +1,4 @@
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import { notImplemented } from "./_utils.ts";
 
 /** https://nodejs.org/api/process.html#process_process_arch */
@@ -27,6 +28,25 @@ export const versions = {
   ...Deno.version,
 };
 
+/** https://nodejs.org/api/process.html#process_process_nexttick_callback_args */
+export function nextTick(this: unknown, cb: () => void): void;
+export function nextTick<T extends Array<unknown>>(
+  this: unknown,
+  cb: (...args: T) => void,
+  ...args: T
+): void;
+export function nextTick<T extends Array<unknown>>(
+  this: unknown,
+  cb: (...args: T) => void,
+  ...args: T
+) {
+  if (args) {
+    queueMicrotask(() => cb.call(this, ...args));
+  } else {
+    queueMicrotask(cb);
+  }
+}
+
 /** https://nodejs.org/api/process.html#process_process */
 // @deprecated `import { process } from 'process'` for backwards compatibility with old deno versions
 export const process = {
@@ -38,10 +58,72 @@ export const process = {
   platform,
   version,
   versions,
+  get stderr() {
+    return {
+      fd: Deno.stderr.rid,
+      get isTTY(): boolean {
+        return Deno.isatty(this.fd);
+      },
+      pipe(_destination: Deno.Writer, _options: { end: boolean }): void {
+        // TODO(JayHelton): to be implemented
+        notImplemented();
+      },
+      // deno-lint-ignore ban-types
+      write(_chunk: string | Uint8Array, _callback: Function): void {
+        // TODO(JayHelton): to be implemented
+        notImplemented();
+      },
+      // deno-lint-ignore ban-types
+      on(_event: string, _callback: Function): void {
+        // TODO(JayHelton): to be implemented
+        notImplemented();
+      },
+    };
+  },
+  get stdin() {
+    return {
+      fd: Deno.stdin.rid,
+      get isTTY(): boolean {
+        return Deno.isatty(this.fd);
+      },
+      read(_size: number): void {
+        // TODO(JayHelton): to be implemented
+        notImplemented();
+      },
+      // deno-lint-ignore ban-types
+      on(_event: string, _callback: Function): void {
+        // TODO(JayHelton): to be implemented
+        notImplemented();
+      },
+    };
+  },
+  get stdout() {
+    return {
+      fd: Deno.stdout.rid,
+      get isTTY(): boolean {
+        return Deno.isatty(this.fd);
+      },
+      pipe(_destination: Deno.Writer, _options: { end: boolean }): void {
+        // TODO(JayHelton): to be implemented
+        notImplemented();
+      },
+      // deno-lint-ignore ban-types
+      write(_chunk: string | Uint8Array, _callback: Function): void {
+        // TODO(JayHelton): to be implemented
+        notImplemented();
+      },
+      // deno-lint-ignore ban-types
+      on(_event: string, _callback: Function): void {
+        // TODO(JayHelton): to be implemented
+        notImplemented();
+      },
+    };
+  },
 
   /** https://nodejs.org/api/process.html#process_process_events */
   // on is not exported by node, it is only available within process:
   // node --input-type=module -e "import { on } from 'process'; console.log(on)"
+  // deno-lint-ignore ban-types
   on(_event: string, _callback: Function): void {
     // TODO(rsp): to be implemented
     notImplemented();
@@ -60,6 +142,7 @@ export const process = {
     // Getter also allows the export Proxy instance to function as intended
     return Deno.env.toObject();
   },
+  nextTick,
 };
 
 /**
@@ -79,23 +162,9 @@ export const env = new Proxy(process.env, {});
 // import process from './std/node/process.ts'
 export default process;
 
-// Define the type for the global declration
-type Process = typeof process;
-
 Object.defineProperty(process, Symbol.toStringTag, {
   enumerable: false,
   writable: true,
   configurable: false,
   value: "process",
 });
-
-Object.defineProperty(globalThis, "process", {
-  value: process,
-  enumerable: false,
-  writable: true,
-  configurable: true,
-});
-
-declare global {
-  const process: Process;
-}

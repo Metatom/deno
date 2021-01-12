@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 
 // This file defines the public interface for dynamically loaded plugins.
 
@@ -8,7 +8,6 @@
 // shared library itself, which would cause segfaults when the plugin is
 // unloaded and all functions in the plugin library are unmapped from memory.
 
-pub use crate::Buf;
 pub use crate::Op;
 pub use crate::OpId;
 pub use crate::ZeroCopyBuf;

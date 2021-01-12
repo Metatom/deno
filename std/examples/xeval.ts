@@ -1,12 +1,11 @@
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import { parse } from "../flags/mod.ts";
 import { readStringDelim } from "../io/bufio.ts";
 
-/* eslint-disable-next-line max-len */
 // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/AsyncFunction.
 const AsyncFunction = Object.getPrototypeOf(async function (): Promise<void> {})
   .constructor;
 
-/* eslint-disable max-len */
 const HELP_MSG = `xeval
 
 Run a script for each new-line or otherwise delimited chunk of standard input.
@@ -27,7 +26,6 @@ OPTIONS:
   -I, --replvar <replvar>   Set variable name to be used in eval, defaults to $
 ARGS:
   <code>`;
-/* eslint-enable max-len */
 
 export type XevalFunc = (v: string) => void;
 

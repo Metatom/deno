@@ -1,11 +1,11 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import { assertEquals, assertThrows } from "../testing/asserts.ts";
 import * as log from "./mod.ts";
 import {
-  LogLevelNames,
-  LevelName,
   getLevelByName,
   getLevelName,
+  LevelName,
+  LogLevelNames,
 } from "./levels.ts";
 
 class TestHandler extends log.handlers.BaseHandler {

@@ -9,35 +9,34 @@ no "magical" module resolution. Instead, imported modules are specified as files
 (including extensions) or fully qualified URL imports. Typescript modules can be
 directly imported. E.g.
 
-```
-import { Response } from "https://deno.land/std@0.53.0/http/server.ts";
+```ts
+import { Response } from "https://deno.land/std@$STD_VERSION/http/server.ts";
 import { queue } from "./collections.ts";
 ```
 
 ### `--no-check` option
 
-When using `deno run`, `deno test`, `deno cache`,`deno info`, or `deno bundle`
-you can specify the `--no-check` flag to disable TypeScript type checking. This
-can significantly reduce the time that program startup takes. This can be very
+When using `deno run`, `deno test`, `deno cache`, or `deno bundle` you can
+specify the `--no-check` flag to disable TypeScript type checking. This can
+significantly reduce the time that program startup takes. This can be very
 useful when type checking is provided by your editor and you want startup time
 to be as fast as possible (for example when restarting the program automatically
 with a file watcher).
 
-Because `--no-check` does not do TypeScript type checking we can not
-automatically remove type only imports and exports as this would require type
-information. For this purpose TypeScript provides the
-[`import type` and `export type` syntax](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-8.html#type-only-imports-and-exports).
-To export a type in a different file use
-`export type { AnInterface } from "./mod.ts";`. To import a type use
-`import type { AnInterface } from "./mod.ts";`. You can check that you are using
-`import type` and `export type` where necessary by setting the
-`importsNotUsedAsValues` TypeScript compiler option to `"error"`. You can see an
-example `tsconfig.json` with this option
-[in the standard library](https://github.com/denoland/deno/blob/master/std/tsconfig_test.json).
+To make the most of skipping type checks, `--no-check` transpiles each module in
+isolation without using information from imported modules. This maximizes
+potential for concurrency and incremental rebuilds. On the other hand, the
+transpiler cannot know if `export { Foo } from "./foo.ts"` should be preserved
+(in case `Foo` is a value) or removed (in case `Foo` is strictly a type). To
+resolve such ambiguities, Deno enforces
+[`isolatedModules`](https://www.typescriptlang.org/tsconfig#isolatedModules) on
+all TS code. This means that `Foo` in the above example must be a value, and the
+[`export type`](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-8.html#type-only-imports-and-exports)
+syntax must be used instead if `Foo` is a type.
 
-Because there is no type information when using `--no-check`, `const enum` is
-not supported because it is are type-directed. `--no-check` also does not
-support the legacy `import =` and `export =` syntax.
+Another consequence of `isolatedModules` is that the type-directed `const enum`
+is treated like `enum`. The legacy `import =` and `export =` syntaxes are also
+not supported by `--no-check`.
 
 ### Using external type definitions
 
@@ -88,7 +87,7 @@ definition which happens to be alongside that file, your JavaScript module named
 export const foo = "foo";
 ```
 
-Deno will see this, and the compiler will use `foo.d.ts` when type checking the
+Deno will see this, and the compiler will use `foo.d.ts` when type-checking the
 file, though `foo.js` will be loaded at runtime. The resolution of the value of
 the directive follows the same resolution logic as importing a module, meaning
 the file needs to have an extension and is relative to the current file. Remote
@@ -152,6 +151,7 @@ Following are the currently allowed settings and their default values in Deno:
     "generateCpuProfile": "profile.cpuprofile",
     "jsx": "react",
     "jsxFactory": "React.createElement",
+    "jsxFragmentFactory": "React.Fragment",
     "lib": [],
     "noFallthroughCasesInSwitch": false,
     "noImplicitAny": true,

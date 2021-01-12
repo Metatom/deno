@@ -1,13 +1,13 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
   assert,
   assertEquals,
   assertThrows,
   assertThrowsAsync,
-  createResolvable,
+  deferred,
   unitTest,
 } from "./test_util.ts";
-import { BufWriter, BufReader } from "../../../std/io/bufio.ts";
+import { BufReader, BufWriter } from "../../../std/io/bufio.ts";
 import { TextProtoReader } from "../../../std/textproto/mod.ts";
 
 const encoder = new TextEncoder();
@@ -121,7 +121,7 @@ unitTest(
 unitTest(
   { perms: { read: true, net: true } },
   async function dialAndListenTLS(): Promise<void> {
-    const resolvable = createResolvable();
+    const resolvable = deferred();
     const hostname = "localhost";
     const port = 3500;
 

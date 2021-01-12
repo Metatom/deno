@@ -1,12 +1,13 @@
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
   assert,
   assertEquals,
-  fail,
   assertThrows,
+  fail,
 } from "../testing/asserts.ts";
-import EventEmitter, { WrappedFunction, once, on } from "./events.ts";
+import EventEmitter, { on, once, WrappedFunction } from "./events.ts";
 
-const shouldNeverBeEmitted: Function = () => {
+const shouldNeverBeEmitted = () => {
   fail("Should never be called");
 };
 
@@ -61,6 +62,31 @@ Deno.test({
     EventEmitter.defaultMaxListeners = 20;
     assertEquals(EventEmitter.defaultMaxListeners, 20);
     EventEmitter.defaultMaxListeners = 10; //reset back to original value
+
+    assertThrows(() => {
+      new EventEmitter().setMaxListeners(-1);
+    });
+
+    const ee = new EventEmitter();
+    const noop = (): void => {};
+    const origWarn = console.warn;
+
+    for (let i = 10; i--;) {
+      ee.on("test", noop);
+    }
+
+    // there are only sync actions until it gets restored,
+    // so it's safe to overwrite this
+    console.warn = (): void => fail("Infinity listeners should be allowed");
+
+    ee.setMaxListeners(Infinity);
+    ee.on("test", noop);
+
+    // 0 means that unlimited listeners are allowed
+    ee.setMaxListeners(0);
+    ee.on("test", noop);
+
+    console.warn = origWarn;
   },
 });
 
@@ -382,7 +408,7 @@ Deno.test({
     setTimeout(() => {
       ee.emit("event", 42, "foo");
     }, 0);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // deno-lint-ignore no-explicit-any
     const valueArr: any[] = await once(ee, "event");
     assertEquals(valueArr, [42, "foo"]);
   },
@@ -396,7 +422,7 @@ Deno.test({
       const event: Event = new Event("event", { composed: true });
       et.dispatchEvent(event);
     }, 0);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // deno-lint-ignore no-explicit-any
     const eventObj: any[] = await once(et, "event");
     assert(!eventObj[0].isTrusted);
   },
@@ -640,4 +666,22 @@ Deno.test({
     assertEquals(ee.listenerCount("foo"), 0);
     assertEquals(ee.listenerCount("error"), 0);
   },
+});
+
+// Event emitter's `on` previously referenced addListener internally, so overriding addListener
+// would cause a deadlock
+// This is a regression test
+Deno.test("Elements that extend EventEmitter listener alias don't end up in a deadlock", () => {
+  class X extends EventEmitter {
+    addListener(eventName: string, listener: () => void) {
+      return super.on(eventName, listener);
+    }
+  }
+
+  const x = new X();
+  try {
+    x.on("x", () => {});
+  } catch (e) {
+    fail();
+  }
 });

@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 // TODO(ry) It'd be better to make Deferred a class that inherits from
 // Promise, rather than an interface. This is possible in ES2016, however
 // typescript produces broken code when targeting ES5 code.
@@ -6,7 +6,7 @@
 // At the time of writing, the github issue is closed but the problem remains.
 export interface Deferred<T> extends Promise<T> {
   resolve: (value?: T | PromiseLike<T>) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // deno-lint-ignore no-explicit-any
   reject: (reason?: any) => void;
 }
 

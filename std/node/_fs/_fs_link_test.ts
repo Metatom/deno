@@ -1,5 +1,5 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
-import { fail, assertEquals } from "../../testing/asserts.ts";
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
+import { assertEquals, fail } from "../../testing/asserts.ts";
 import { link, linkSync } from "./_fs_link.ts";
 import { assert } from "../../testing/asserts.ts";
 
@@ -8,7 +8,7 @@ Deno.test({
   async fn() {
     const tempFile: string = await Deno.makeTempFile();
     const linkedFile: string = tempFile + ".link";
-    await new Promise((res, rej) => {
+    await new Promise<void>((res, rej) => {
       link(tempFile, linkedFile, (err) => {
         if (err) rej(err);
         else res();
@@ -31,7 +31,7 @@ Deno.test({
   name: "ASYNC: hard linking files passes error to callback",
   async fn() {
     let failed = false;
-    await new Promise((res, rej) => {
+    await new Promise<void>((res, rej) => {
       link("no-such-file", "no-such-file", (err) => {
         if (err) rej(err);
         else res();

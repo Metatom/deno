@@ -1,26 +1,27 @@
 ## Assertions
 
 To help developers write tests the Deno standard library comes with a built in
-[assertions module](https://deno.land/std/testing/asserts.ts) which can be
-imported from `https://deno.land/std/testing/asserts.ts`.
+[assertions module](https://deno.land/std@$STD_VERSION/testing/asserts.ts) which
+can be imported from `https://deno.land/std@$STD_VERSION/testing/asserts.ts`.
 
 ```js
-import { assert } from "https://deno.land/std/testing/asserts.ts";
+import { assert } from "https://deno.land/std@$STD_VERSION/testing/asserts.ts";
 
 Deno.test("Hello Test", () => {
   assert("Hello");
 });
 ```
 
-The assertions module provides nine assertions:
+The assertions module provides 10 assertions:
 
 - `assert(expr: unknown, msg = ""): asserts expr`
 - `assertEquals(actual: unknown, expected: unknown, msg?: string): void`
 - `assertNotEquals(actual: unknown, expected: unknown, msg?: string): void`
 - `assertStrictEquals(actual: unknown, expected: unknown, msg?: string): void`
-- `assertStringContains(actual: string, expected: string, msg?: string): void`
-- `assertArrayContains(actual: unknown[], expected: unknown[], msg?: string): void`
+- `assertStringIncludes(actual: string, expected: string, msg?: string): void`
+- `assertArrayIncludes(actual: unknown[], expected: unknown[], msg?: string): void`
 - `assertMatch(actual: string, expected: RegExp, msg?: string): void`
+- `assertNotMatch(actual: string, expected: RegExp, msg?: string): void`
 - `assertThrows(fn: () => void, ErrorClass?: Constructor, msgIncludes = "", msg?: string): Error`
 - `assertThrowsAsync(fn: () => Promise<void>, ErrorClass?: Constructor, msgIncludes = "", msg?: string): Promise<Error>`
 
@@ -91,31 +92,32 @@ precise check against two primitive types.
 ### Contains
 
 There are two methods available to assert a value contains a value,
-`assertStringContains()` and `assertArrayContains()`.
+`assertStringIncludes()` and `assertArrayIncludes()`.
 
-The `assertStringContains()` assertion does a simple includes check on a string
+The `assertStringIncludes()` assertion does a simple includes check on a string
 to see if it contains the expected string.
 
 ```js
 Deno.test("Test Assert String Contains", () => {
-  assertStringContains("Hello World", "Hello");
+  assertStringIncludes("Hello World", "Hello");
 });
 ```
 
-The `assertArrayContains()` assertion is slightly more advanced and can find
+The `assertArrayIncludes()` assertion is slightly more advanced and can find
 both a value within an array and an array of values within an array.
 
 ```js
 Deno.test("Test Assert Array Contains", () => {
-  assertArrayContains([1, 2, 3], [1]);
-  assertArrayContains([1, 2, 3], [1, 2]);
-  assertArrayContains(Array.from("Hello World"), Array.from("Hello"));
+  assertArrayIncludes([1, 2, 3], [1]);
+  assertArrayIncludes([1, 2, 3], [1, 2]);
+  assertArrayIncludes(Array.from("Hello World"), Array.from("Hello"));
 });
 ```
 
 ### Regex
 
-You can assert regular expressions via the `assertMatch()` assertion.
+You can assert regular expressions via `assertMatch()` and `assertNotMatch()`
+assertions.
 
 ```js
 Deno.test("Test Assert Match", () => {
@@ -125,18 +127,25 @@ Deno.test("Test Assert Match", () => {
   assertMatch("https://www.google.com", basicUrl);
   assertMatch("http://facebook.com", basicUrl);
 });
+
+Deno.test("Test Assert Not Match", () => {
+  assertNotMatch("abcdefghi", new RegExp("jkl"));
+
+  const basicUrl = new RegExp("^https?://[a-z.]+.com$");
+  assertNotMatch("https://deno.land/", basicUrl);
+});
 ```
 
 ### Throws
 
 There are two ways to assert whether something throws an error in Deno,
-`assertThrows()` and `assertAsyncThrows()`. Both assertions allow you to check
+`assertThrows()` and `assertThrowsAsync()`. Both assertions allow you to check
 an
 [Error](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error)
 has been thrown, the type of error thrown and what the message was.
 
 The difference between the two assertions is `assertThrows()` accepts a standard
-function and `assertAsyncThrows()` accepts a function which returns a
+function and `assertThrowsAsync()` accepts a function which returns a
 [Promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise).
 
 The `assertThrows()` assertion will check an error has been thrown, and
@@ -155,7 +164,7 @@ Deno.test("Test Assert Throws", () => {
 });
 ```
 
-The `assertAsyncThrows()` assertion is a little more complicated, mainly because
+The `assertThrowsAsync()` assertion is a little more complicated, mainly because
 it deals with Promises. But basically it will catch thrown errors or rejections
 in Promises. You can also optionally check for the error type and error message.
 

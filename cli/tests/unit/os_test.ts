@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
   assert,
   assertEquals,
@@ -62,7 +62,7 @@ unitTest(
       )`;
       const proc = Deno.run({
         cmd: [Deno.execPath(), "eval", src],
-        env: inputEnv,
+        env: { ...inputEnv, NO_COLOR: "1" },
         stdout: "piped",
       });
       const status = await proc.status();
@@ -176,4 +176,21 @@ unitTest({ perms: { env: false } }, function releasePerm(): void {
   assertThrows(() => {
     Deno.osRelease();
   }, Deno.errors.PermissionDenied);
+});
+
+unitTest({ perms: { env: true } }, function systemMemoryInfo(): void {
+  const info = Deno.systemMemoryInfo();
+  assert(info.total >= 0);
+  assert(info.free >= 0);
+  assert(info.available >= 0);
+  assert(info.buffers >= 0);
+  assert(info.cached >= 0);
+  assert(info.swapTotal >= 0);
+  assert(info.swapFree >= 0);
+});
+
+unitTest({ perms: { env: true } }, function systemCpuInfo(): void {
+  const { cores, speed } = Deno.systemCpuInfo();
+  assert(cores === undefined || cores > 0);
+  assert(speed === undefined || speed > 0);
 });

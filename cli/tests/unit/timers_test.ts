@@ -1,42 +1,63 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
-  unitTest,
-  createResolvable,
   assert,
   assertEquals,
   assertNotEquals,
+  deferred,
+  unitTest,
 } from "./test_util.ts";
 
-function deferred(): {
-  promise: Promise<{}>;
-  resolve: (value?: {} | PromiseLike<{}>) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  reject: (reason?: any) => void;
-} {
-  let resolve: (value?: {} | PromiseLike<{}>) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let reject: ((reason?: any) => void) | undefined = undefined;
-  const promise = new Promise<{}>((res, rej): void => {
-    resolve = res;
-    reject = rej;
-  });
-  return {
-    promise,
-    resolve: resolve!,
-    reject: reject!,
-  };
+function waitForMs(ms: number): Promise<void> {
+  return new Promise((resolve): number => setTimeout(resolve, ms));
 }
 
-function waitForMs(ms: number): Promise<number> {
-  return new Promise((resolve: () => void): number => setTimeout(resolve, ms));
-}
+unitTest(async function functionParameterBindingSuccess(): Promise<void> {
+  const promise = deferred();
+  let count = 0;
+
+  const nullProto = (newCount: number): void => {
+    count = newCount;
+    promise.resolve();
+  };
+
+  Reflect.setPrototypeOf(nullProto, null);
+
+  setTimeout(nullProto, 500, 1);
+  await promise;
+  // count should be reassigned
+  assertEquals(count, 1);
+});
+
+unitTest(async function stringifyAndEvalNonFunctions(): Promise<void> {
+  // eval can only access global scope
+  const global = globalThis as unknown as {
+    globalPromise: ReturnType<typeof deferred>;
+    globalCount: number;
+  };
+  global.globalPromise = deferred();
+  global.globalCount = 0;
+
+  const notAFunction =
+    "globalThis.globalCount++; globalThis.globalPromise.resolve();" as unknown as () =>
+      void;
+
+  setTimeout(notAFunction, 500);
+
+  await global.globalPromise;
+
+  // count should be incremented
+  assertEquals(global.globalCount, 1);
+
+  Reflect.deleteProperty(global, "globalPromise");
+  Reflect.deleteProperty(global, "globalCount");
+});
 
 unitTest(async function timeoutSuccess(): Promise<void> {
-  const { promise, resolve } = deferred();
+  const promise = deferred();
   let count = 0;
   setTimeout((): void => {
     count++;
-    resolve();
+    promise.resolve();
   }, 500);
   await promise;
   // count should increment
@@ -44,14 +65,14 @@ unitTest(async function timeoutSuccess(): Promise<void> {
 });
 
 unitTest(async function timeoutArgs(): Promise<void> {
-  const { promise, resolve } = deferred();
+  const promise = deferred();
   const arg = 1;
   setTimeout(
     (a, b, c): void => {
       assertEquals(a, arg);
       assertEquals(b, arg.toString());
       assertEquals(c, [arg]);
-      resolve();
+      promise.resolve();
     },
     10,
     arg,
@@ -99,13 +120,13 @@ unitTest(async function timeoutCancelMultiple(): Promise<void> {
 
 unitTest(async function timeoutCancelInvalidSilentFail(): Promise<void> {
   // Expect no panic
-  const { promise, resolve } = deferred();
+  const promise = deferred();
   let count = 0;
   const id = setTimeout((): void => {
     count++;
     // Should have no effect
     clearTimeout(id);
-    resolve();
+    promise.resolve();
   }, 500);
   await promise;
   assertEquals(count, 1);
@@ -115,12 +136,12 @@ unitTest(async function timeoutCancelInvalidSilentFail(): Promise<void> {
 });
 
 unitTest(async function intervalSuccess(): Promise<void> {
-  const { promise, resolve } = deferred();
+  const promise = deferred();
   let count = 0;
   const id = setInterval((): void => {
     count++;
     clearInterval(id);
-    resolve();
+    promise.resolve();
   }, 100);
   await promise;
   // Clear interval
@@ -175,11 +196,11 @@ unitTest(async function fireCallbackImmediatelyWhenDelayOverMaxValue(): Promise<
 });
 
 unitTest(async function timeoutCallbackThis(): Promise<void> {
-  const { promise, resolve } = deferred();
+  const promise = deferred();
   const obj = {
     foo(): void {
       assertEquals(this, window);
-      resolve();
+      promise.resolve();
     },
   };
   setTimeout(obj.foo, 1);
@@ -202,7 +223,7 @@ unitTest(async function timeoutBindThis(): Promise<void> {
   ];
 
   for (const thisArg of thisCheckPassed) {
-    const resolvable = createResolvable();
+    const resolvable = deferred();
     let hasThrown = 0;
     try {
       setTimeout.call(thisArg, () => resolvable.resolve(), 1);
@@ -306,13 +327,13 @@ unitTest(async function timerMaxCpuBug(): Promise<void> {
 unitTest(async function timerBasicMicrotaskOrdering(): Promise<void> {
   let s = "";
   let count = 0;
-  const { promise, resolve } = deferred();
+  const promise = deferred();
   setTimeout(() => {
     Promise.resolve().then(() => {
       count++;
       s += "de";
       if (count === 2) {
-        resolve();
+        promise.resolve();
       }
     });
   });
@@ -320,7 +341,7 @@ unitTest(async function timerBasicMicrotaskOrdering(): Promise<void> {
     count++;
     s += "no";
     if (count === 2) {
-      resolve();
+      promise.resolve();
     }
   });
   await promise;
@@ -329,7 +350,7 @@ unitTest(async function timerBasicMicrotaskOrdering(): Promise<void> {
 
 unitTest(async function timerNestedMicrotaskOrdering(): Promise<void> {
   let s = "";
-  const { promise, resolve } = deferred();
+  const promise = deferred();
   s += "0";
   setTimeout(() => {
     s += "4";
@@ -338,7 +359,7 @@ unitTest(async function timerNestedMicrotaskOrdering(): Promise<void> {
       .then(() => {
         setTimeout(() => {
           s += "B";
-          resolve();
+          promise.resolve();
         });
       })
       .then(() => {
@@ -369,21 +390,21 @@ unitTest(function testQueueMicrotask() {
 
 unitTest(async function timerIgnoresDateOverride(): Promise<void> {
   const OriginalDate = Date;
-  const { promise, resolve, reject } = deferred();
+  const promise = deferred();
   let hasThrown = 0;
   try {
     const overrideCalled: () => number = () => {
-      reject("global Date override used over original Date object");
+      promise.reject("global Date override used over original Date object");
       return 0;
     };
-    function DateOverride(): void {
+    const DateOverride = (): void => {
       overrideCalled();
-    }
+    };
     globalThis.Date = DateOverride as DateConstructor;
     globalThis.Date.now = overrideCalled;
     globalThis.Date.UTC = overrideCalled;
     globalThis.Date.parse = overrideCalled;
-    queueMicrotask(resolve);
+    queueMicrotask(promise.resolve);
     await promise;
     hasThrown = 1;
   } catch (err) {
@@ -400,3 +421,55 @@ unitTest(async function timerIgnoresDateOverride(): Promise<void> {
   }
   assertEquals(hasThrown, 1);
 });
+
+unitTest({ perms: { hrtime: true } }, function sleepSync(): void {
+  const start = performance.now();
+  Deno.sleepSync(10);
+  const after = performance.now();
+  assert(after - start >= 10);
+});
+
+unitTest(
+  { perms: { hrtime: true } },
+  async function sleepSyncShorterPromise(): Promise<void> {
+    const perf = performance;
+    const short = 5;
+    const long = 10;
+
+    const start = perf.now();
+    const p = sleepAsync(short).then(() => {
+      const after = perf.now();
+      // pending promises should resolve after the main thread comes out of sleep
+      assert(after - start >= long);
+    });
+    Deno.sleepSync(long);
+
+    await p;
+  },
+);
+
+unitTest(
+  { perms: { hrtime: true } },
+  async function sleepSyncLongerPromise(): Promise<void> {
+    const perf = performance;
+    const short = 5;
+    const long = 10;
+
+    const start = perf.now();
+    const p = sleepAsync(long).then(() => {
+      const after = perf.now();
+      // sleeping for less than the duration of a promise should have no impact
+      // on the resolution of that promise
+      assert(after - start >= long);
+    });
+    Deno.sleepSync(short);
+
+    await p;
+  },
+);
+
+function sleepAsync(delay: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(), delay);
+  });
+}

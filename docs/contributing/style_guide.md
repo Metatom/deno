@@ -1,13 +1,11 @@
 # Deno Style Guide
 
-## Table of Contents
-
 ## Copyright Headers
 
 Most modules in the repository should have the following copyright header:
 
 ```ts
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 ```
 
 If the code originates elsewhere, ensure that the file has the proper copyright
@@ -49,7 +47,7 @@ https://chromium.googlesource.com/chromium/src/+/master/styleguide/inclusive_cod
 
 Follow Rust conventions and be consistent with existing code.
 
-## Typescript
+## TypeScript
 
 The TypeScript portions of the codebase include `cli/js` for the built-ins and
 the standard library `std`.
@@ -90,7 +88,7 @@ When designing function interfaces, stick to the following rules.
    Other arguments can be objects, but they must be distinguishable from a
    'plain' Object runtime, by having either:
 
-   - a distinguishing prototype (e.g. `Array`, `Map`, `Date`, `class MyThing`)
+   - a distinguishing prototype (e.g. `Array`, `Map`, `Date`, `class MyThing`).
    - a well-known symbol property (e.g. an iterable with `Symbol.iterator`).
 
    This allows the API to evolve in a backwards compatible way, even when the
@@ -176,6 +174,28 @@ export interface PWrite {
 export function pwrite(options: PWrite) {}
 ```
 
+### Export all interfaces that are used as parameters to an exported member
+
+Whenever you are using interfaces that are included in the arguments of an
+exported member, you should export the interface that is used. Here is an
+example:
+
+```ts
+// my_file.ts
+export interface Person {
+  name: string;
+  age: number;
+}
+
+export function createPerson(name: string, age: number): Person {
+  return { name, age };
+}
+
+// mod.ts
+export { createPerson } from "./my_file.ts";
+export type { Person } from "./my_file.ts";
+```
+
 ### Minimize dependencies; do not make circular imports.
 
 Although `cli/js` and `std` have no external dependencies, we must still be
@@ -193,7 +213,7 @@ underscore. By convention, only files in its own directory should import it.
 We strive for complete documentation. Every exported symbol ideally should have
 a documentation line.
 
-If possible, use a single line for the JS Doc. Example:
+If possible, use a single line for the JSDoc. Example:
 
 ```ts
 /** foo does bar. */
@@ -235,7 +255,7 @@ comments should be written as:
 /** This is a good single line JSDoc. */
 ```
 
-And not
+And not:
 
 ```ts
 /**
@@ -259,6 +279,20 @@ the first column of the comment. For example:
 Code examples should not contain additional comments. It is already inside a
 comment. If it needs further comments it is not a good example.
 
+### Resolve linting problems using directives
+
+Currently, the building process uses `dlint` to validate linting problems in the
+code. If the task requires code that is non-conformant to linter use
+`deno-lint-ignore <code>` directive to suppress the warning.
+
+```typescript
+// deno-lint-ignore no-explicit-any
+let x: any;
+```
+
+This ensures the continuous integration process doesn't fail due to linting
+problems, but it should be used scarcely.
+
 ### Each module should come with a test module.
 
 Every module with public functionality `foo.ts` should come with a test module
@@ -278,10 +312,10 @@ test myTestFunction ... ok
 Example of test:
 
 ```ts
-import { assertEquals } from "https://deno.land/std@v0.11/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@$STD_VERSION/testing/asserts.ts";
 import { foo } from "./mod.ts";
 
-Deno.test("myTestFunction" function() {
+Deno.test("myTestFunction", function () {
   assertEquals(foo(), { bar: "bar" });
 });
 ```
@@ -291,7 +325,7 @@ Deno.test("myTestFunction" function() {
 Top level functions should use the `function` keyword. Arrow syntax should be
 limited to closures.
 
-Bad
+Bad:
 
 ```ts
 export const foo = (): string => {
@@ -299,7 +333,7 @@ export const foo = (): string => {
 };
 ```
 
-Good
+Good:
 
 ```ts
 export function foo(): string {
@@ -315,13 +349,13 @@ export function foo(): string {
 programs can rely on. We want to guarantee to users that this code does not
 include potentially unreviewed third party code.
 
-#### Document and maintain browser compatiblity.
+#### Document and maintain browser compatibility.
 
 If a module is browser compatible, include the following in the JSDoc at the top
 of the module:
 
 ```ts
-/** This module is browser compatible. */
+// This module is browser compatible.
 ```
 
 Maintain browser compatibility for such a module by either not using the global

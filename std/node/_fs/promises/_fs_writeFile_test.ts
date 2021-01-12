@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
   assert,
   assertEquals,
@@ -6,7 +6,7 @@ import {
   assertThrowsAsync,
 } from "../../../testing/asserts.ts";
 import { writeFile } from "./_fs_writeFile.ts";
-import type { TextEncodings } from "../_fs_common.ts";
+import type { TextEncodings } from "../../_utils.ts";
 
 const decoder = new TextDecoder("utf-8");
 

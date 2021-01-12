@@ -1,24 +1,24 @@
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
   GlobOptions,
-  SEP_PATTERN,
   globToRegExp,
   isAbsolute,
   isGlob,
   joinGlobs,
   normalize,
+  SEP_PATTERN,
 } from "../path/mod.ts";
 import {
-  WalkEntry,
-  createWalkEntry,
-  createWalkEntrySync,
+  _createWalkEntry,
+  _createWalkEntrySync,
   walk,
+  WalkEntry,
   walkSync,
 } from "./walk.ts";
 import { assert } from "../_util/assert.ts";
+import { isWindows } from "../_util/os.ts";
 
-const isWindows = Deno.build.os == "windows";
-
-export interface ExpandGlobOptions extends GlobOptions {
+export interface ExpandGlobOptions extends Omit<GlobOptions, "os"> {
   root?: string;
   exclude?: string[];
   includeDirs?: boolean;
@@ -59,15 +59,17 @@ function comparePath(a: WalkEntry, b: WalkEntry): number {
   return 0;
 }
 
-/**
- * Expand the glob string from the specified `root` directory and yield each
+/** Expand the glob string from the specified `root` directory and yield each
  * result as a `WalkEntry` object.
  *
- * Examples:
+ * See [`globToRegExp()`](../path/glob.ts#globToRegExp) for details on supported
+ * syntax.
  *
- *     for await (const file of expandGlob("**\/*.ts")) {
- *       console.log(file);
- *     }
+ * Example:
+ *
+ *      for await (const file of expandGlob("**\/*.ts")) {
+ *        console.log(file);
+ *      }
  */
 export async function* expandGlob(
   glob: string,
@@ -103,7 +105,7 @@ export async function* expandGlob(
 
   let fixedRootInfo: WalkEntry;
   try {
-    fixedRootInfo = await createWalkEntry(fixedRoot);
+    fixedRootInfo = await _createWalkEntry(fixedRoot);
   } catch (error) {
     return throwUnlessNotFound(error);
   }
@@ -118,7 +120,7 @@ export async function* expandGlob(
       const parentPath = joinGlobs([walkInfo.path, ".."], globOptions);
       try {
         if (shouldInclude(parentPath)) {
-          return yield await createWalkEntry(parentPath);
+          return yield await _createWalkEntry(parentPath);
         }
       } catch (error) {
         throwUnlessNotFound(error);
@@ -167,14 +169,13 @@ export async function* expandGlob(
   yield* currentMatches;
 }
 
-/**
- * Synchronous version of `expandGlob()`.
+/** Synchronous version of `expandGlob()`.
  *
- * Examples:
+ * Example:
  *
- *     for (const file of expandGlobSync("**\/*.ts")) {
- *       console.log(file);
- *     }
+ *      for (const file of expandGlobSync("**\/*.ts")) {
+ *        console.log(file);
+ *      }
  */
 export function* expandGlobSync(
   glob: string,
@@ -210,7 +211,7 @@ export function* expandGlobSync(
 
   let fixedRootInfo: WalkEntry;
   try {
-    fixedRootInfo = createWalkEntrySync(fixedRoot);
+    fixedRootInfo = _createWalkEntrySync(fixedRoot);
   } catch (error) {
     return throwUnlessNotFound(error);
   }
@@ -225,7 +226,7 @@ export function* expandGlobSync(
       const parentPath = joinGlobs([walkInfo.path, ".."], globOptions);
       try {
         if (shouldInclude(parentPath)) {
-          return yield createWalkEntrySync(parentPath);
+          return yield _createWalkEntrySync(parentPath);
         }
       } catch (error) {
         throwUnlessNotFound(error);

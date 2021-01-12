@@ -1,15 +1,16 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
   assert,
   assertEquals,
-  assertStringContains,
+  assertStringIncludes,
   assertThrows,
   assertThrowsAsync,
 } from "../testing/asserts.ts";
 import * as path from "../path/mod.ts";
 import { emptyDir, emptyDirSync } from "./empty_dir.ts";
 
-const testdataDir = path.resolve("fs", "testdata");
+const moduleDir = path.dirname(path.fromFileUrl(import.meta.url));
+const testdataDir = path.resolve(moduleDir, "testdata");
 
 Deno.test("emptyDirIfItNotExist", async function (): Promise<void> {
   const testDir = path.join(testdataDir, "empty_dir_test_1");
@@ -203,8 +204,7 @@ for (const s of scenes) {
       );
 
       try {
-        // TODO(lucacasonato): remove unstable when stabilized
-        const args = [Deno.execPath(), "run", "--unstable"];
+        const args = [Deno.execPath(), "run", "--quiet"];
 
         if (s.read) {
           args.push("--allow-read");
@@ -231,7 +231,7 @@ for (const s of scenes) {
         assert(p.stdout);
         const output = await p.output();
         p.close();
-        assertStringContains(new TextDecoder().decode(output), s.output);
+        assertStringIncludes(new TextDecoder().decode(output), s.output);
       } catch (err) {
         await Deno.remove(testfolder, { recursive: true });
         throw err;

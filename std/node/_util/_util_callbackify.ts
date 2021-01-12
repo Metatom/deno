@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 //
 // Adapted from Node.js. Copyright Joyent, Inc. and other Node contributors.
 //
@@ -84,7 +84,7 @@ function callbackify<Arg1T, Arg2T, Arg3T, Arg4T, Arg5T, ResultT>(
   callback: Callback<ResultT>,
 ) => void;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// deno-lint-ignore no-explicit-any
 function callbackify(original: any): any {
   if (typeof original !== "function") {
     throw new NodeInvalidArgTypeError('"original"');

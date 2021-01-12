@@ -8,7 +8,7 @@ Test `deno`:
 # Run the whole suite:
 cargo test
 
-# Only test cli/js/:
+# Only test cli/tests/unit/:
 cargo test js_unit_tests
 ```
 
@@ -23,18 +23,18 @@ cargo test std_tests
 Lint the code:
 
 ```shell
-./tools/lint.py
+deno run -A --unstable ./tools/lint.js
 ```
 
 Format the code:
 
 ```shell
-./tools/format.py
+deno run -A --unstable ./tools/format.js
 ```
 
 ### Profiling
 
-To start profiling,
+To start profiling:
 
 ```sh
 # Make sure we're only building release.
@@ -107,7 +107,7 @@ Current executable set to '../deno/target/debug/deno' (x86_64).
 
 ### V8 flags
 
-V8 has many many internal command-line flags.
+V8 has many many internal command-line flags:
 
 ```shell
 $ deno run --v8-flags=--help _

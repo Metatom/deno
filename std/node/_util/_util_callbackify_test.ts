@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 //
 // Adapted from Node.js. Copyright Joyent, Inc. and other Node contributors.
 //
@@ -80,10 +80,10 @@ Deno.test(
     const testQueue = new TestQueue();
 
     for (const value of values) {
-      // eslint-disable-next-line require-await
-      async function asyncFn(): Promise<typeof value> {
+      // deno-lint-ignore require-await
+      const asyncFn = async (): Promise<typeof value> => {
         return value;
-      }
+      };
       const cbAsyncFn = callbackify(asyncFn);
       testQueue.enqueue((done) => {
         cbAsyncFn((err: unknown, ret: unknown) => {
@@ -93,9 +93,9 @@ Deno.test(
         });
       });
 
-      function promiseFn(): Promise<typeof value> {
+      const promiseFn = (): Promise<typeof value> => {
         return Promise.resolve(value);
-      }
+      };
       const cbPromiseFn = callbackify(promiseFn);
       testQueue.enqueue((done) => {
         cbPromiseFn((err: unknown, ret: unknown) => {
@@ -105,17 +105,17 @@ Deno.test(
         });
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      function thenableFn(): PromiseLike<any> {
+      // deno-lint-ignore no-explicit-any
+      const thenableFn = (): PromiseLike<any> => {
         return {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          // deno-lint-ignore no-explicit-any
           then(onfulfilled): PromiseLike<any> {
             assert(onfulfilled);
             onfulfilled(value);
             return this;
           },
         };
-      }
+      };
       const cbThenableFn = callbackify(thenableFn);
       testQueue.enqueue((done) => {
         cbThenableFn((err: unknown, ret: unknown) => {
@@ -136,10 +136,10 @@ Deno.test(
     const testQueue = new TestQueue();
 
     for (const value of values) {
-      // eslint-disable-next-line require-await
-      async function asyncFn(): Promise<never> {
+      // deno-lint-ignore require-await
+      const asyncFn = async (): Promise<never> => {
         return Promise.reject(value);
-      }
+      };
       const cbAsyncFn = callbackify(asyncFn);
       assertStrictEquals(cbAsyncFn.length, 1);
       assertStrictEquals(cbAsyncFn.name, "asyncFnCallbackified");
@@ -150,11 +150,11 @@ Deno.test(
             if ("reason" in err) {
               assert(!value);
               assertStrictEquals(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                // deno-lint-ignore no-explicit-any
                 (err as any).code,
                 "ERR_FALSY_VALUE_REJECTION",
               );
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              // deno-lint-ignore no-explicit-any
               assertStrictEquals((err as any).reason, value);
             } else {
               assertStrictEquals(String(value).endsWith(err.message), true);
@@ -166,9 +166,9 @@ Deno.test(
         });
       });
 
-      function promiseFn(): Promise<never> {
+      const promiseFn = (): Promise<never> => {
         return Promise.reject(value);
-      }
+      };
       const obj = {};
       Object.defineProperty(promiseFn, "name", {
         value: obj,
@@ -186,11 +186,11 @@ Deno.test(
             if ("reason" in err) {
               assert(!value);
               assertStrictEquals(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                // deno-lint-ignore no-explicit-any
                 (err as any).code,
                 "ERR_FALSY_VALUE_REJECTION",
               );
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              // deno-lint-ignore no-explicit-any
               assertStrictEquals((err as any).reason, value);
             } else {
               assertStrictEquals(String(value).endsWith(err.message), true);
@@ -202,7 +202,7 @@ Deno.test(
         });
       });
 
-      function thenableFn(): PromiseLike<never> {
+      const thenableFn = (): PromiseLike<never> => {
         return {
           then(onfulfilled, onrejected): PromiseLike<never> {
             assert(onrejected);
@@ -210,7 +210,7 @@ Deno.test(
             return this;
           },
         };
-      }
+      };
 
       const cbThenableFn = callbackify(thenableFn);
       testQueue.enqueue((done) => {
@@ -220,11 +220,11 @@ Deno.test(
             if ("reason" in err) {
               assert(!value);
               assertStrictEquals(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                // deno-lint-ignore no-explicit-any
                 (err as any).code,
                 "ERR_FALSY_VALUE_REJECTION",
               );
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              // deno-lint-ignore no-explicit-any
               assertStrictEquals((err as any).reason, value);
             } else {
               assertStrictEquals(String(value).endsWith(err.message), true);
@@ -245,11 +245,11 @@ Deno.test("callbackify passes arguments to the original", async () => {
   const testQueue = new TestQueue();
 
   for (const value of values) {
-    // eslint-disable-next-line require-await
-    async function asyncFn(arg: typeof value): Promise<typeof value> {
+    // deno-lint-ignore require-await
+    const asyncFn = async (arg: typeof value): Promise<typeof value> => {
       assertStrictEquals(arg, value);
       return arg;
-    }
+    };
 
     const cbAsyncFn = callbackify(asyncFn);
     assertStrictEquals(cbAsyncFn.length, 2);
@@ -263,10 +263,10 @@ Deno.test("callbackify passes arguments to the original", async () => {
       });
     });
 
-    function promiseFn<T>(arg: typeof value): Promise<typeof value> {
+    const promiseFn = <T>(arg: typeof value): Promise<typeof value> => {
       assertStrictEquals(arg, value);
       return Promise.resolve(arg);
-    }
+    };
     const obj = {};
     Object.defineProperty(promiseFn, "length", {
       value: obj,
@@ -314,7 +314,7 @@ Deno.test("callbackify preserves the `this` binding", async () => {
     });
 
     const objectWithAsyncFunction = {
-      // eslint-disable-next-line require-await
+      // deno-lint-ignore require-await
       async fn(this: unknown, arg: typeof value): Promise<typeof value> {
         assertStrictEquals(this, objectWithAsyncFunction);
         return arg;
@@ -341,12 +341,12 @@ Deno.test("callbackify preserves the `this` binding", async () => {
 Deno.test("callbackify throws with non-function inputs", () => {
   ["foo", null, undefined, false, 0, {}, Symbol(), []].forEach((value) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // deno-lint-ignore no-explicit-any
       callbackify(value as any);
       throw Error("We should never reach this error");
     } catch (err) {
       assert(err instanceof TypeError);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // deno-lint-ignore no-explicit-any
       assertStrictEquals((err as any).code, "ERR_INVALID_ARG_TYPE");
       assertStrictEquals(err.name, "TypeError");
       assertStrictEquals(
@@ -360,12 +360,12 @@ Deno.test("callbackify throws with non-function inputs", () => {
 Deno.test(
   "callbackify returns a function that throws if the last argument is not a function",
   () => {
-    // eslint-disable-next-line require-await
+    // deno-lint-ignore require-await
     async function asyncFn(): Promise<number> {
       return 42;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // deno-lint-ignore no-explicit-any
     const cb = callbackify(asyncFn) as any;
     const args: unknown[] = [];
 
@@ -377,7 +377,7 @@ Deno.test(
         throw Error("We should never reach this error");
       } catch (err) {
         assert(err instanceof TypeError);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // deno-lint-ignore no-explicit-any
         assertStrictEquals((err as any).code, "ERR_INVALID_ARG_TYPE");
         assertStrictEquals(err.name, "TypeError");
         assertStrictEquals(

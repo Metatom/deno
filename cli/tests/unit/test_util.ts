@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 
 import { assert, assertEquals } from "../../../std/testing/asserts.ts";
 import * as colors from "../../../std/fmt/colors.ts";
@@ -6,16 +6,17 @@ export { colors };
 import { resolve } from "../../../std/path/mod.ts";
 export {
   assert,
-  assertThrows,
-  assertThrowsAsync,
   assertEquals,
   assertMatch,
   assertNotEquals,
   assertStrictEquals,
-  assertStringContains,
-  unreachable,
+  assertStringIncludes,
+  assertThrows,
+  assertThrowsAsync,
   fail,
+  unreachable,
 } from "../../../std/testing/asserts.ts";
+export { deferred } from "../../../std/async/deferred.ts";
 export { readLines } from "../../../std/io/bufio.ts";
 export { parse as parseArgs } from "../../../std/flags/mod.ts";
 
@@ -187,28 +188,10 @@ export function unitTest(
   REGISTERED_UNIT_TESTS.push(unitTestDefinition);
 }
 
-export interface ResolvableMethods<T> {
-  resolve: (value?: T | PromiseLike<T>) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  reject: (reason?: any) => void;
-}
-
-export type Resolvable<T> = Promise<T> & ResolvableMethods<T>;
-
-export function createResolvable<T>(): Resolvable<T> {
-  let methods: ResolvableMethods<T>;
-  const promise = new Promise<T>((resolve, reject): void => {
-    methods = { resolve, reject };
-  });
-  // TypeScript doesn't know that the Promise callback occurs synchronously
-  // therefore use of not null assertion (`!`)
-  return Object.assign(promise, methods!) as Resolvable<T>;
-}
-
 const encoder = new TextEncoder();
 
 // Replace functions with null, errors with their stack strings, and JSONify.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// deno-lint-ignore no-explicit-any
 function serializeTestMessage(message: any): string {
   return JSON.stringify({
     start: message.start && {
@@ -225,7 +208,7 @@ function serializeTestMessage(message: any): string {
     },
     end: message.end && {
       ...message.end,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // deno-lint-ignore no-explicit-any
       results: message.end.results.map((result: any) => ({
         ...result,
         error: result.error?.stack,
@@ -236,7 +219,7 @@ function serializeTestMessage(message: any): string {
 
 export async function reportToConn(
   conn: Deno.Conn,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // deno-lint-ignore no-explicit-any
   message: any,
 ): Promise<void> {
   const line = serializeTestMessage(message);

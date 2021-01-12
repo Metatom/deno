@@ -1,16 +1,16 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
   assert,
   assertEquals,
-  assertThrowsAsync,
   assertNotEquals,
+  assertThrowsAsync,
 } from "../testing/asserts.ts";
 import {
-  LogLevels,
-  LogLevelNames,
-  getLevelName,
   getLevelByName,
+  getLevelName,
   LevelName,
+  LogLevelNames,
+  LogLevels,
 } from "./levels.ts";
 import { BaseHandler, FileHandler, RotatingFileHandler } from "./handlers.ts";
 import { LogRecord } from "./logger.ts";

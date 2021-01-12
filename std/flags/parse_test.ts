@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import { assertEquals } from "../testing/asserts.ts";
 import { parse } from "./mod.ts";
 
@@ -26,6 +26,9 @@ Deno.test("comprehensive", function (): void {
       "--bool",
       "--no-meep",
       "--multi=baz",
+      "-f=abc=def",
+      "--foo=---=\\n--+34-=/=",
+      "-e==",
       "--",
       "--not-a-flag",
       "eek",
@@ -34,6 +37,9 @@ Deno.test("comprehensive", function (): void {
       c: true,
       a: true,
       t: true,
+      e: "=",
+      f: "abc=def",
+      foo: "---=\\n--+34-=/=",
       s: "woo",
       h: "awesome",
       b: true,

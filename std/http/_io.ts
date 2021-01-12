@@ -1,8 +1,9 @@
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import { BufReader, BufWriter } from "../io/bufio.ts";
 import { TextProtoReader } from "../textproto/mod.ts";
 import { assert } from "../_util/assert.ts";
 import { encoder } from "../encoding/utf8.ts";
-import { ServerRequest, Response } from "./server.ts";
+import { Response, ServerRequest } from "./server.ts";
 import { STATUS_TEXT } from "./http_status.ts";
 
 export function emptyReader(): Deno.Reader {
@@ -68,7 +69,7 @@ export function chunkedBodyReader(h: Headers, r: BufReader): Deno.Reader {
     const [chunkSizeString] = line.split(";");
     const chunkSize = parseInt(chunkSizeString, 16);
     if (Number.isNaN(chunkSize) || chunkSize < 0) {
-      throw new Error("Invalid chunk size");
+      throw new Deno.errors.InvalidData("Invalid chunk size");
     }
     if (chunkSize > 0) {
       if (chunkSize > buf.byteLength) {
@@ -170,21 +171,21 @@ function parseTrailer(field: string | null): Headers | undefined {
 }
 
 export async function writeChunkedBody(
-  w: Deno.Writer,
+  w: BufWriter,
   r: Deno.Reader,
 ): Promise<void> {
-  const writer = BufWriter.create(w);
   for await (const chunk of Deno.iter(r)) {
     if (chunk.byteLength <= 0) continue;
     const start = encoder.encode(`${chunk.byteLength.toString(16)}\r\n`);
     const end = encoder.encode("\r\n");
-    await writer.write(start);
-    await writer.write(chunk);
-    await writer.write(end);
+    await w.write(start);
+    await w.write(chunk);
+    await w.write(end);
+    await w.flush();
   }
 
   const endChunk = encoder.encode("0\r\n\r\n");
-  await writer.write(endChunk);
+  await w.write(endChunk);
 }
 
 /** Write trailer headers to writer. It should mostly should be called after
@@ -345,7 +346,7 @@ export async function readRequest(
   req.conn = conn;
   req.r = bufr;
   [req.method, req.url, req.proto] = firstLine.split(" ", 3);
-  [req.protoMinor, req.protoMajor] = parseHTTPVersion(req.proto);
+  [req.protoMajor, req.protoMinor] = parseHTTPVersion(req.proto);
   req.headers = headers;
   fixLength(req);
   return req;

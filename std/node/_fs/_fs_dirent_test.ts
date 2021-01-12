@@ -1,3 +1,4 @@
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import { assert, assertEquals, assertThrows } from "../../testing/asserts.ts";
 import Dirent from "./_fs_dirent.ts";
 

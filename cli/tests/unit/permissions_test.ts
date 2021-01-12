@@ -1,27 +1,33 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
-import { unitTest, assert } from "./test_util.ts";
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
+import {
+  assertEquals,
+  assertThrows,
+  assertThrowsAsync,
+  unitTest,
+} from "./test_util.ts";
 
 unitTest(async function permissionInvalidName(): Promise<void> {
-  let thrown = false;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await assertThrowsAsync(async () => {
+    // deno-lint-ignore no-explicit-any
     await Deno.permissions.query({ name: "foo" as any });
-  } catch (e) {
-    thrown = true;
-    assert(e instanceof Error);
-  } finally {
-    assert(thrown);
-  }
+  }, Error);
 });
 
-unitTest(async function permissionNetInvalidUrl(): Promise<void> {
-  let thrown = false;
-  try {
-    await Deno.permissions.query({ name: "net", url: ":" });
-  } catch (e) {
-    thrown = true;
-    assert(e instanceof URIError);
-  } finally {
-    assert(thrown);
-  }
+unitTest(async function permissionNetInvalidHost(): Promise<void> {
+  await assertThrowsAsync(async () => {
+    await Deno.permissions.query({ name: "net", host: ":" });
+  }, URIError);
+});
+
+unitTest(function permissionsIllegalConstructor() {
+  assertThrows(() => new Deno.Permissions(), TypeError, "Illegal constructor.");
+});
+
+unitTest(function permissionStatusIllegalConstructor() {
+  assertThrows(
+    () => new Deno.PermissionStatus(),
+    TypeError,
+    "Illegal constructor.",
+  );
+  assertEquals(Deno.PermissionStatus.length, 0);
 });

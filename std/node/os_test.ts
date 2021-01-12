@@ -1,4 +1,5 @@
-import { assert, assertThrows, assertEquals } from "../testing/asserts.ts";
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
+import { assert, assertEquals, assertThrows } from "../testing/asserts.ts";
 import * as os from "./os.ts";
 
 Deno.test({
@@ -43,6 +44,13 @@ Deno.test({
   name: "release is a string",
   fn() {
     assertEquals(typeof os.release(), "string");
+  },
+});
+
+Deno.test({
+  name: "type is a string",
+  fn() {
+    assertEquals(typeof os.type(), "string");
   },
 });
 
@@ -200,18 +208,25 @@ Deno.test({
 });
 
 Deno.test({
+  name: "Total memory amount should be greater than 0",
+  fn() {
+    assert(os.totalmem() > 0);
+  },
+});
+
+Deno.test({
+  name: "Free memory amount should be greater than 0",
+  fn() {
+    assert(os.freemem() > 0);
+  },
+});
+
+Deno.test({
   name: "APIs not yet implemented",
   fn() {
     assertThrows(
       () => {
         os.cpus();
-      },
-      Error,
-      "Not implemented",
-    );
-    assertThrows(
-      () => {
-        os.freemem();
       },
       Error,
       "Not implemented",
@@ -233,20 +248,6 @@ Deno.test({
     assertThrows(
       () => {
         os.setPriority(0);
-      },
-      Error,
-      "Not implemented",
-    );
-    assertThrows(
-      () => {
-        os.totalmem();
-      },
-      Error,
-      "Not implemented",
-    );
-    assertThrows(
-      () => {
-        os.type();
       },
       Error,
       "Not implemented",

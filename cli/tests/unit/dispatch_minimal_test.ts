@@ -26,9 +26,9 @@ unitTest(async function sendAsyncStackTrace(): Promise<void> {
 });
 
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
+  // deno-lint-ignore no-namespace
   namespace Deno {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // deno-lint-ignore no-explicit-any
     var core: any; // eslint-disable-line no-var
   }
 }
@@ -43,7 +43,7 @@ unitTest(function malformedMinimalControlBuffer(): void {
     header.byteLength / 4,
   );
   const arg = buf32[1];
-  const message = new TextDecoder().decode(res.slice(12)).trim();
+  const codeAndMessage = new TextDecoder().decode(res.slice(12)).trim();
   assert(arg < 0);
-  assertEquals(message, "Unparsable control buffer");
+  assertEquals(codeAndMessage, "TypeErrorUnparsable control buffer");
 });

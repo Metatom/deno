@@ -6,7 +6,7 @@
  *
  * Copyright (c) 2011 T. Jameson Little
  * Copyright (c) 2019 Jun Kato
- * Copyright (c) 2020 the Deno authors
+ * Copyright (c) 2018-2021 the Deno authors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -100,20 +100,21 @@ function clean(length: number): Uint8Array {
   return buffer;
 }
 
-function pad(num: number, bytes: number, base?: number): string {
-  const numString = num.toString(base || 8);
+function pad(num: number, bytes: number, base = 8): string {
+  const numString = num.toString(base);
   return "000000000000".substr(numString.length + 12 - bytes) + numString;
 }
 
-const types: { [key: string]: string } = {
-  "": "file",
-  "0": "file",
-  "1": "link",
-  "2": "symlink",
-  "3": "character-device",
-  "4": "block-device",
-  "5": "directory",
-};
+enum FileTypes {
+  "file" = 0,
+  "link" = 1,
+  "symlink" = 2,
+  "character-device" = 3,
+  "block-device" = 4,
+  "directory" = 5,
+  "fifo" = 6,
+  "contiguous-file" = 7,
+}
 
 /*
 struct posix_header {           // byte offset
@@ -296,7 +297,7 @@ export interface TarMeta extends TarInfo {
   fileSize?: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// deno-lint-ignore no-empty-interface
 interface TarEntry extends TarMeta {}
 
 /**
@@ -352,6 +353,10 @@ export class Tar {
     let info: Deno.FileInfo | undefined;
     if (opts.filePath) {
       info = await Deno.stat(opts.filePath);
+      if (info.isDirectory) {
+        info.size = 0;
+        opts.reader = new Deno.Buffer();
+      }
     }
 
     const mode = opts.fileMode || (info && info.mode) ||
@@ -374,6 +379,10 @@ export class Tar {
 
     const fileSize = info?.size ?? opts.contentSize;
     assert(fileSize != null, "fileSize must be set");
+
+    const type = opts.type
+      ? FileTypes[opts.type as keyof typeof FileTypes]
+      : (info?.isDirectory ? FileTypes.directory : FileTypes.file);
     const tarData: TarDataWithSource = {
       fileName,
       fileNamePrefix,
@@ -383,7 +392,7 @@ export class Tar {
       fileSize: pad(fileSize, 11),
       mtime: pad(mtime, 11),
       checksum: "        ",
-      type: "0", // just a file
+      type: type.toString(),
       ustar,
       owner: opts.owner || "",
       group: opts.group || "",
@@ -476,7 +485,10 @@ class TarEntry implements Reader {
       entryBytesLeft,
     );
 
-    if (entryBytesLeft <= 0) return null;
+    if (entryBytesLeft <= 0) {
+      this.#consumed = true;
+      return null;
+    }
 
     const block = new Uint8Array(bufSize);
     const n = await readBlock(this.#reader, block);
@@ -484,7 +496,7 @@ class TarEntry implements Reader {
 
     this.#read += n || 0;
     if (n === null || bytesLeft <= 0) {
-      if (null) this.#consumed = true;
+      if (n === null) this.#consumed = true;
       return null;
     }
 
@@ -593,7 +605,7 @@ export class Untar {
     );
 
     meta.fileSize = parseInt(decoder.decode(header.fileSize), 8);
-    meta.type = types[meta.type as string] || meta.type;
+    meta.type = FileTypes[parseInt(meta.type!)] ?? meta.type;
 
     return meta;
   };

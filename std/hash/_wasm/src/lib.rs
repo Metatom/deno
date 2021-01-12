@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 
 use digest::{Digest, DynDigest};
 use wasm_bindgen::prelude::*;
@@ -42,10 +42,10 @@ pub fn create_hash(algorithm: &str) -> Result<DenoHash, JsValue> {
 
 #[wasm_bindgen]
 pub fn update_hash(hash: &mut DenoHash, data: &[u8]) {
-  hash.inner.input(data)
+  hash.inner.update(data)
 }
 
 #[wasm_bindgen]
 pub fn digest_hash(hash: &mut DenoHash) -> Box<[u8]> {
-  hash.inner.result_reset()
+  hash.inner.finalize_reset()
 }

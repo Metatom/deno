@@ -1,16 +1,18 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import { Logger } from "./logger.ts";
+import type { GenericFunction } from "./logger.ts";
 import {
   BaseHandler,
   ConsoleHandler,
-  WriterHandler,
   FileHandler,
   RotatingFileHandler,
+  WriterHandler,
 } from "./handlers.ts";
 import { assert } from "../_util/assert.ts";
 import type { LevelName } from "./levels.ts";
 
-export { LogLevels, LevelName } from "./levels.ts";
+export { LogLevels } from "./levels.ts";
+export type { LevelName } from "./levels.ts";
 export { Logger } from "./logger.ts";
 
 export class LoggerConfig {
@@ -55,6 +57,7 @@ export const handlers = {
   RotatingFileHandler,
 };
 
+/** Get a logger instance. If not specified `name`, get the default logger.  */
 export function getLogger(name?: string): Logger {
   if (!name) {
     const d = state.loggers.get("default");
@@ -73,13 +76,14 @@ export function getLogger(name?: string): Logger {
   return result;
 }
 
+/** Log with debug level, using default logger. */
 export function debug<T>(msg: () => T, ...args: unknown[]): T | undefined;
 export function debug<T>(
-  msg: T extends Function ? never : T,
+  msg: T extends GenericFunction ? never : T,
   ...args: unknown[]
 ): T;
 export function debug<T>(
-  msg: (T extends Function ? never : T) | (() => T),
+  msg: (T extends GenericFunction ? never : T) | (() => T),
   ...args: unknown[]
 ): T | undefined {
   // Assist TS compiler with pass-through generic type
@@ -89,13 +93,14 @@ export function debug<T>(
   return getLogger("default").debug(msg, ...args);
 }
 
+/** Log with info level, using default logger. */
 export function info<T>(msg: () => T, ...args: unknown[]): T | undefined;
 export function info<T>(
-  msg: T extends Function ? never : T,
+  msg: T extends GenericFunction ? never : T,
   ...args: unknown[]
 ): T;
 export function info<T>(
-  msg: (T extends Function ? never : T) | (() => T),
+  msg: (T extends GenericFunction ? never : T) | (() => T),
   ...args: unknown[]
 ): T | undefined {
   // Assist TS compiler with pass-through generic type
@@ -105,13 +110,14 @@ export function info<T>(
   return getLogger("default").info(msg, ...args);
 }
 
+/** Log with warning level, using default logger. */
 export function warning<T>(msg: () => T, ...args: unknown[]): T | undefined;
 export function warning<T>(
-  msg: T extends Function ? never : T,
+  msg: T extends GenericFunction ? never : T,
   ...args: unknown[]
 ): T;
 export function warning<T>(
-  msg: (T extends Function ? never : T) | (() => T),
+  msg: (T extends GenericFunction ? never : T) | (() => T),
   ...args: unknown[]
 ): T | undefined {
   // Assist TS compiler with pass-through generic type
@@ -121,13 +127,14 @@ export function warning<T>(
   return getLogger("default").warning(msg, ...args);
 }
 
+/** Log with error level, using default logger. */
 export function error<T>(msg: () => T, ...args: unknown[]): T | undefined;
 export function error<T>(
-  msg: T extends Function ? never : T,
+  msg: T extends GenericFunction ? never : T,
   ...args: unknown[]
 ): T;
 export function error<T>(
-  msg: (T extends Function ? never : T) | (() => T),
+  msg: (T extends GenericFunction ? never : T) | (() => T),
   ...args: unknown[]
 ): T | undefined {
   // Assist TS compiler with pass-through generic type
@@ -137,13 +144,14 @@ export function error<T>(
   return getLogger("default").error(msg, ...args);
 }
 
+/** Log with critical level, using default logger. */
 export function critical<T>(msg: () => T, ...args: unknown[]): T | undefined;
 export function critical<T>(
-  msg: T extends Function ? never : T,
+  msg: T extends GenericFunction ? never : T,
   ...args: unknown[]
 ): T;
 export function critical<T>(
-  msg: (T extends Function ? never : T) | (() => T),
+  msg: (T extends GenericFunction ? never : T) | (() => T),
   ...args: unknown[]
 ): T | undefined {
   // Assist TS compiler with pass-through generic type
@@ -153,6 +161,7 @@ export function critical<T>(
   return getLogger("default").critical(msg, ...args);
 }
 
+/** Setup logger config. */
 export async function setup(config: LogConfig): Promise<void> {
   state.config = {
     handlers: { ...DEFAULT_CONFIG.handlers, ...config.handlers },

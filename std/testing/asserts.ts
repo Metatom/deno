@@ -1,14 +1,14 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
-/** This module is browser compatible. Do not rely on good formatting of values
- * for AssertionError messages in browsers. */
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
+// This module is browser compatible. Do not rely on good formatting of values
+// for AssertionError messages in browsers.
 
-import { red, green, white, gray, bold, stripColor } from "../fmt/colors.ts";
-import diff, { DiffType, DiffResult } from "./diff.ts";
+import { bold, gray, green, red, stripColor, white } from "../fmt/colors.ts";
+import { diff, DiffResult, DiffType } from "./_diff.ts";
 
 const CAN_NOT_DISPLAY = "[Cannot display]";
 
 interface Constructor {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // deno-lint-ignore no-explicit-any
   new (...args: any[]): any;
 }
 
@@ -19,8 +19,13 @@ export class AssertionError extends Error {
   }
 }
 
+/**
+ * Converts the input into a string. Objects, Sets and Maps are sorted so as to
+ * make tests less flaky
+ * @param v Value to be formatted
+ */
 export function _format(v: unknown): string {
-  let string = globalThis.Deno
+  return globalThis.Deno
     ? Deno.inspect(v, {
       depth: Infinity,
       sorted: true,
@@ -28,13 +33,13 @@ export function _format(v: unknown): string {
       compact: false,
       iterableLimit: Infinity,
     })
-    : String(v);
-  if (typeof v == "string") {
-    string = `"${string.replace(/(?=["\\])/g, "\\")}"`;
-  }
-  return string;
+    : `"${String(v).replace(/(?=["\\])/g, "\\")}"`;
 }
 
+/**
+ * Colors the output of assertion diffs
+ * @param diffType Difference type, either added or removed
+ */
 function createColor(diffType: DiffType): (s: string) => string {
   switch (diffType) {
     case DiffType.added:
@@ -46,6 +51,10 @@ function createColor(diffType: DiffType): (s: string) => string {
   }
 }
 
+/**
+ * Prefixes `+` or `-` in diff output
+ * @param diffType Difference type, either added or removed
+ */
 function createSign(diffType: DiffType): string {
   switch (diffType) {
     case DiffType.added:
@@ -81,6 +90,11 @@ function isKeyedCollection(x: unknown): x is Set<unknown> {
   return [Symbol.iterator, "size"].every((k) => k in (x as Set<unknown>));
 }
 
+/**
+ * Deep equality comparison used in assertions
+ * @param c actual value
+ * @param d expected value
+ */
 export function equal(c: unknown, d: unknown): boolean {
   const seen = new Map();
   return (function compare(a: unknown, b: unknown): boolean {
@@ -95,6 +109,13 @@ export function equal(c: unknown, d: unknown): boolean {
       return String(a) === String(b);
     }
     if (a instanceof Date && b instanceof Date) {
+      const aTime = a.getTime();
+      const bTime = b.getTime();
+      // Check for NaN equality manually since NaN is not
+      // equal to itself.
+      if (Number.isNaN(aTime) && Number.isNaN(bTime)) {
+        return true;
+      }
       return a.getTime() === b.getTime();
     }
     if (Object.is(a, b)) {
@@ -242,9 +263,19 @@ export function assertNotEquals(
  * assertStrictEquals(1, 2)
  * ```
  */
+export function assertStrictEquals(
+  actual: unknown,
+  expected: unknown,
+  msg?: string,
+): void;
 export function assertStrictEquals<T>(
   actual: T,
   expected: T,
+  msg?: string,
+): void;
+export function assertStrictEquals(
+  actual: unknown,
+  expected: unknown,
   msg?: string,
 ): void {
   if (actual === expected) {
@@ -286,10 +317,58 @@ export function assertStrictEquals<T>(
 }
 
 /**
- * Make an assertion that actual contains expected. If not
+ * Make an assertion that `actual` and `expected` are not strictly equal.
+ * If the values are strictly equal then throw.
+ * ```ts
+ * assertNotStrictEquals(1, 1)
+ * ```
+ */
+export function assertNotStrictEquals(
+  actual: unknown,
+  expected: unknown,
+  msg?: string,
+): void;
+export function assertNotStrictEquals<T>(
+  actual: T,
+  expected: T,
+  msg?: string,
+): void;
+export function assertNotStrictEquals(
+  actual: unknown,
+  expected: unknown,
+  msg?: string,
+): void {
+  if (actual !== expected) {
+    return;
+  }
+
+  throw new AssertionError(
+    msg ?? `Expected "actual" to be strictly unequal to: ${_format(actual)}\n`,
+  );
+}
+
+/**
+ * Make an assertion that actual is not null or undefined. If not
  * then thrown.
  */
-export function assertStringContains(
+export function assertExists(
+  actual: unknown,
+  msg?: string,
+): void {
+  if (actual === undefined || actual === null) {
+    if (!msg) {
+      msg =
+        `actual: "${actual}" expected to match anything but null or undefined`;
+    }
+    throw new AssertionError(msg);
+  }
+}
+
+/**
+ * Make an assertion that actual includes expected. If not
+ * then thrown.
+ */
+export function assertStringIncludes(
   actual: string,
   expected: string,
   msg?: string,
@@ -303,26 +382,26 @@ export function assertStringContains(
 }
 
 /**
- * Make an assertion that `actual` contains the `expected` values.
+ * Make an assertion that `actual` includes the `expected` values.
  * If not then an error will be thrown.
  *
  * Type parameter can be specified to ensure values under comparison have the same type.
  * For example:
  *```ts
- *assertArrayContains<number>([1, 2], [2])
+ *assertArrayIncludes<number>([1, 2], [2])
  *```
  */
-export function assertArrayContains(
+export function assertArrayIncludes(
   actual: ArrayLike<unknown>,
   expected: ArrayLike<unknown>,
   msg?: string,
 ): void;
-export function assertArrayContains<T>(
+export function assertArrayIncludes<T>(
   actual: ArrayLike<T>,
   expected: ArrayLike<T>,
   msg?: string,
 ): void;
-export function assertArrayContains(
+export function assertArrayIncludes(
   actual: ArrayLike<unknown>,
   expected: ArrayLike<unknown>,
   msg?: string,
@@ -344,7 +423,7 @@ export function assertArrayContains(
     return;
   }
   if (!msg) {
-    msg = `actual: "${_format(actual)}" expected to contain: "${
+    msg = `actual: "${_format(actual)}" expected to include: "${
       _format(expected)
     }"\nmissing: ${_format(missing)}`;
   }
@@ -366,6 +445,65 @@ export function assertMatch(
     }
     throw new AssertionError(msg);
   }
+}
+
+/**
+ * Make an assertion that `actual` not match RegExp `expected`. If match
+ * then thrown
+ */
+export function assertNotMatch(
+  actual: string,
+  expected: RegExp,
+  msg?: string,
+): void {
+  if (expected.test(actual)) {
+    if (!msg) {
+      msg = `actual: "${actual}" expected to not match: "${expected}"`;
+    }
+    throw new AssertionError(msg);
+  }
+}
+
+/**
+ * Make an assertion that `actual` object is a subset of `expected` object, deeply.
+ * If not, then throw.
+ */
+export function assertObjectMatch(
+  actual: Record<PropertyKey, unknown>,
+  expected: Record<PropertyKey, unknown>,
+): void {
+  type loose = Record<PropertyKey, unknown>;
+  const seen = new WeakMap();
+  return assertEquals(
+    (function filter(a: loose, b: loose): loose {
+      // Prevent infinite loop with circular references with same filter
+      if ((seen.has(a)) && (seen.get(a) === b)) {
+        return a;
+      }
+      seen.set(a, b);
+      // Filter keys and symbols which are present in both actual and expected
+      const filtered = {} as loose;
+      const entries = [
+        ...Object.getOwnPropertyNames(a),
+        ...Object.getOwnPropertySymbols(a),
+      ]
+        .filter((key) => key in b)
+        .map((key) => [key, a[key as string]]) as Array<[string, unknown]>;
+      // Build filtered object and filter recursively on nested objects references
+      for (const [key, value] of entries) {
+        if (typeof value === "object") {
+          const subset = (b as loose)[key];
+          if ((typeof subset === "object") && (subset)) {
+            filtered[key] = filter(value as loose, subset as loose);
+            continue;
+          }
+        }
+        filtered[key] = value;
+      }
+      return filtered;
+    })(actual, expected),
+    expected,
+  );
 }
 
 /**

@@ -1,5 +1,5 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
-import { fail, assert } from "../../testing/asserts.ts";
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
+import { assert, fail } from "../../testing/asserts.ts";
 import { chmod, chmodSync } from "./_fs_chmod.ts";
 
 Deno.test({
@@ -8,7 +8,7 @@ Deno.test({
   async fn() {
     const tempFile: string = await Deno.makeTempFile();
     const originalFileMode: number | null = (await Deno.lstat(tempFile)).mode;
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       chmod(tempFile, 0o777, (err) => {
         if (err) reject(err);
         else resolve();

@@ -1,9 +1,7 @@
 // Ported from js-yaml v3.13.1:
 // https://github.com/nodeca/js-yaml/commit/665aadda42349dcae869f12040d9b10ef18d12da
 // Copyright 2011-2015 by Vitaly Puzrin. All rights reserved. MIT license.
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
-
-/* eslint-disable max-len */
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 
 import { YAMLError } from "../error.ts";
 import { Mark } from "../mark.ts";
@@ -26,11 +24,11 @@ const CHOMPING_STRIP = 2;
 const CHOMPING_KEEP = 3;
 
 const PATTERN_NON_PRINTABLE =
+  // deno-lint-ignore no-control-regex
   /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x84\x86-\x9F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/;
 const PATTERN_NON_ASCII_LINE_BREAKS = /[\x85\u2028\u2029]/;
 const PATTERN_FLOW_INDICATORS = /[,\[\]\{\}]/;
 const PATTERN_TAG_HANDLE = /^(?:!|!!|![a-z\-]+!)$/i;
-/* eslint-disable-next-line max-len */
 const PATTERN_TAG_URI =
   /^(?:!|[^,\[\]\{\}])(?:%[0-9a-f]{2}|[0-9a-z\-#;\/\?:@&=\+\$,_\.!~\*'\(\)\[\]])*$/i;
 
@@ -813,7 +811,7 @@ function readFlowCollection(state: LoaderState, nodeIndent: number): boolean {
         valueNode,
       );
     } else if (isPair) {
-      (result as Array<{}>).push(
+      (result as ArrayObject[]).push(
         storeMappingPair(
           state,
           null,
@@ -944,7 +942,7 @@ function readBlockScalar(state: LoaderState, nodeIndent: number): boolean {
         }
       }
 
-      // Break this `while` cycle and go to the funciton's epilogue.
+      // Break this `while` cycle and go to the function's epilogue.
       break;
     }
 

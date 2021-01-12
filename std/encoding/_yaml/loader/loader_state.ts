@@ -1,7 +1,7 @@
 // Ported from js-yaml v3.13.1:
 // https://github.com/nodeca/js-yaml/commit/665aadda42349dcae869f12040d9b10ef18d12da
 // Copyright 2011-2015 by Vitaly Puzrin. All rights reserved. MIT license.
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 
 import type { YAMLError } from "../error.ts";
 import type { Schema, SchemaDefinition, TypeMap } from "../schema.ts";
@@ -22,7 +22,8 @@ export interface LoaderStateOptions {
   onWarning?(this: null, e?: YAMLError): void;
 }
 
-export type ResultType = [] | {} | string;
+// deno-lint-ignore no-explicit-any
+export type ResultType = any[] | Record<string, any> | string;
 
 export class LoaderState extends State {
   public documents: Any[] = [];

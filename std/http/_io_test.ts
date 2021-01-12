@@ -1,21 +1,22 @@
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
-  assertThrowsAsync,
-  assertEquals,
   assert,
+  assertEquals,
   assertNotEquals,
+  assertThrowsAsync,
 } from "../testing/asserts.ts";
 import {
   bodyReader,
   chunkedBodyReader,
-  writeTrailers,
-  readTrailers,
   parseHTTPVersion,
   readRequest,
+  readTrailers,
   writeResponse,
+  writeTrailers,
 } from "./_io.ts";
-import { encode, decode } from "../encoding/utf8.ts";
+import { decode, encode } from "../encoding/utf8.ts";
 import { BufReader, ReadLineResult } from "../io/bufio.ts";
-import { ServerRequest, Response } from "./server.ts";
+import { Response, ServerRequest } from "./server.ts";
 import { StringReader } from "../io/readers.ts";
 import { mockConn } from "./_mock_conn.ts";
 
@@ -406,6 +407,11 @@ Deno.test("testReadRequestError", async function (): Promise<void> {
       in: "GET / HTTP/1.1\r\nheader:foo\r\n",
       err: Deno.errors.UnexpectedEof,
     },
+    {
+      in: "POST / HTTP/1.0\r\n\r\n",
+      headers: [],
+      version: true,
+    },
     { in: "", eof: true },
     {
       in: "HEAD / HTTP/1.1\r\nContent-Length:4\r\n\r\n",
@@ -471,6 +477,12 @@ Deno.test("testReadRequestError", async function (): Promise<void> {
       assert(err instanceof (test.err as typeof Deno.errors.UnexpectedEof));
     } else {
       assert(req instanceof ServerRequest);
+      if (test.version) {
+        // return value order of parseHTTPVersion() function have to match with [req.protoMajor, req.protoMinor];
+        const version = parseHTTPVersion(test.in.split(" ", 3)[2]);
+        assertEquals(req.protoMajor, version[0]);
+        assertEquals(req.protoMinor, version[1]);
+      }
       assert(test.headers);
       assertEquals(err, undefined);
       assertNotEquals(req, null);

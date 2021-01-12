@@ -12,8 +12,8 @@ the specified CLI flags and main module. It is placed in the installation root's
 Example:
 
 ```shell
-$ deno install --allow-net --allow-read https://deno.land/std/http/file_server.ts
-[1/1] Compiling https://deno.land/std/http/file_server.ts
+$ deno install --allow-net --allow-read https://deno.land/std@$STD_VERSION/http/file_server.ts
+[1/1] Compiling https://deno.land/std@$STD_VERSION/http/file_server.ts
 
 ✅ Successfully installed file_server.
 /Users/deno/.deno/bin/file_server
@@ -22,7 +22,7 @@ $ deno install --allow-net --allow-read https://deno.land/std/http/file_server.t
 To change the executable name, use `-n`/`--name`:
 
 ```shell
-deno install --allow-net --allow-read -n serve https://deno.land/std/http/file_server.ts
+deno install --allow-net --allow-read -n serve https://deno.land/std@$STD_VERSION/http/file_server.ts
 ```
 
 The executable name is inferred by default:
@@ -32,11 +32,12 @@ The executable name is inferred by default:
 - If the file stem is something generic like 'main', 'mod', 'index' or 'cli',
   and the path has no parent, take the file name of the parent path. Otherwise
   settle with the generic name.
+- If the resulting name has an '@...' suffix, strip it.
 
 To change the installation root, use `--root`:
 
 ```shell
-deno install --allow-net --allow-read --root /usr/local https://deno.land/std/http/file_server.ts
+deno install --allow-net --allow-read --root /usr/local https://deno.land/std@$STD_VERSION/http/file_server.ts
 ```
 
 The installation root is determined, in order of precedence:
@@ -55,13 +56,13 @@ You must specify permissions that will be used to run the script at installation
 time.
 
 ```shell
-deno install --allow-net --allow-read https://deno.land/std/http/file_server.ts -p 8080
+deno install --allow-net --allow-read https://deno.land/std@$STD_VERSION/http/file_server.ts -p 8080
 ```
 
 The above command creates an executable called `file_server` that runs with
 network and read permissions and binds to port 8080.
 
-For good practice, use the [`import.meta.main`](../examples/testing_if_main.md)
+For good practice, use the [`import.meta.main`](../examples/module_metadata.md)
 idiom to specify the entry point in an executable script.
 
 Example:

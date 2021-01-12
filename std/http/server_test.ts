@@ -10,21 +10,25 @@ import {
   assert,
   assertEquals,
   assertMatch,
-  assertStringContains,
+  assertStringIncludes,
   assertThrowsAsync,
 } from "../testing/asserts.ts";
 import {
-  Response,
-  ServerRequest,
-  Server,
-  serve,
-  serveTLS,
   _parseAddrFromStr,
+  Response,
+  serve,
+  Server,
+  ServerRequest,
+  serveTLS,
 } from "./server.ts";
 import { BufReader, BufWriter } from "../io/bufio.ts";
 import { delay } from "../async/delay.ts";
-import { encode, decode } from "../encoding/utf8.ts";
+import { decode, encode } from "../encoding/utf8.ts";
 import { mockConn } from "./_mock_conn.ts";
+import { dirname, fromFileUrl, join, resolve } from "../path/mod.ts";
+
+const moduleDir = dirname(fromFileUrl(import.meta.url));
+const testdataDir = resolve(moduleDir, "testdata");
 
 interface ResponseTest {
   response: Response;
@@ -366,9 +370,11 @@ Deno.test({
       cmd: [
         Deno.execPath(),
         "run",
+        "--quiet",
         "--allow-net",
-        "http/testdata/simple_server.ts",
+        "testdata/simple_server.ts",
       ],
+      cwd: moduleDir,
       stdout: "piped",
     });
 
@@ -410,10 +416,12 @@ Deno.test({
       cmd: [
         Deno.execPath(),
         "run",
+        "--quiet",
         "--allow-net",
         "--allow-read",
-        "http/testdata/simple_https_server.ts",
+        "testdata/simple_https_server.ts",
       ],
+      cwd: moduleDir,
       stdout: "piped",
     });
 
@@ -436,7 +444,7 @@ Deno.test({
       const conn = await Deno.connectTls({
         hostname: "localhost",
         port: 4503,
-        certFile: "http/testdata/tls/RootCA.pem",
+        certFile: join(testdataDir, "tls/RootCA.pem"),
       });
       await Deno.writeAll(
         conn,
@@ -492,7 +500,7 @@ Deno.test({
     const nread = await conn.read(res);
     assert(nread !== null);
     const resStr = new TextDecoder().decode(res.subarray(0, nread));
-    assertStringContains(resStr, "/hello");
+    assertStringIncludes(resStr, "/hello");
     server.close();
     await p;
     // Client connection should still be open, verify that
@@ -559,6 +567,118 @@ Deno.test({
 });
 
 Deno.test({
+  name: "[http] finalizing invalid chunked data closes connection",
+  async fn(): Promise<void> {
+    const serverRoutine = async (): Promise<void> => {
+      const server = serve(":8124");
+      for await (const req of server) {
+        await req.respond({ status: 200, body: "Hello, world!" });
+        break;
+      }
+      server.close();
+    };
+    const p = serverRoutine();
+    const conn = await Deno.connect({
+      hostname: "127.0.0.1",
+      port: 8124,
+    });
+    await Deno.writeAll(
+      conn,
+      encode(
+        "PUT / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\nzzzzzzz\r\nhello",
+      ),
+    );
+    await conn.closeWrite();
+    const responseString = decode(await Deno.readAll(conn));
+    assertEquals(
+      responseString,
+      "HTTP/1.1 200 OK\r\ncontent-length: 13\r\n\r\nHello, world!",
+    );
+    conn.close();
+    await p;
+  },
+});
+
+Deno.test({
+  name: "[http] finalizing chunked unexpected EOF closes connection",
+  async fn(): Promise<void> {
+    const serverRoutine = async (): Promise<void> => {
+      const server = serve(":8124");
+      for await (const req of server) {
+        await req.respond({ status: 200, body: "Hello, world!" });
+        break;
+      }
+      server.close();
+    };
+    const p = serverRoutine();
+    const conn = await Deno.connect({
+      hostname: "127.0.0.1",
+      port: 8124,
+    });
+    await Deno.writeAll(
+      conn,
+      encode("PUT / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nHello"),
+    );
+    conn.closeWrite();
+    const responseString = decode(await Deno.readAll(conn));
+    assertEquals(
+      responseString,
+      "HTTP/1.1 200 OK\r\ncontent-length: 13\r\n\r\nHello, world!",
+    );
+    conn.close();
+    await p;
+  },
+});
+
+Deno.test({
+  name:
+    "[http] receiving bad request from a closed connection should not throw",
+  async fn(): Promise<void> {
+    const server = serve(":8124");
+    const serverRoutine = async (): Promise<void> => {
+      for await (const req of server) {
+        await req.respond({ status: 200, body: "Hello, world!" });
+      }
+    };
+    const p = serverRoutine();
+    const conn = await Deno.connect({
+      hostname: "127.0.0.1",
+      port: 8124,
+    });
+    await Deno.writeAll(
+      conn,
+      encode([
+        // A normal request is required:
+        "GET / HTTP/1.1",
+        "Host: localhost",
+        "",
+        // The bad request:
+        "GET / HTTP/1.1",
+        "Host: localhost",
+        "INVALID!HEADER!",
+        "",
+        "",
+      ].join("\r\n")),
+    );
+    // After sending the two requests, don't receive the reponses.
+
+    // Closing the connection now.
+    conn.close();
+
+    // The server will write responses to the closed connection,
+    // the first few `write()` calls will not throws, until the server received
+    // the TCP RST. So we need the normal request before the bad request to
+    // make the server do a few writes before it writes that `400` response.
+
+    // Wait for server to handle requests.
+    await delay(10);
+
+    server.close();
+    await p;
+  },
+});
+
+Deno.test({
   name: "serveTLS Invalid Cert",
   fn: async (): Promise<void> => {
     async function iteratorReq(server: Server): Promise<void> {
@@ -570,8 +690,8 @@ Deno.test({
     const tlsOptions = {
       hostname: "localhost",
       port,
-      certFile: "./http/testdata/tls/localhost.crt",
-      keyFile: "./http/testdata/tls/localhost.key",
+      certFile: join(testdataDir, "tls/localhost.crt"),
+      keyFile: join(testdataDir, "tls/localhost.key"),
     };
     const server = serveTLS(tlsOptions);
     const p = iteratorReq(server);
@@ -593,7 +713,7 @@ Deno.test({
       const conn = await Deno.connectTls({
         hostname: "localhost",
         port,
-        certFile: "http/testdata/tls/RootCA.pem",
+        certFile: join(testdataDir, "tls/RootCA.pem"),
       });
 
       await Deno.writeAll(

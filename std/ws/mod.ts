@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import { decode, encode } from "../encoding/utf8.ts";
 import { hasOwnProperty } from "../_util/has_own_property.ts";
 import { BufReader, BufWriter } from "../io/bufio.ts";
@@ -31,6 +31,7 @@ export interface WebSocketCloseEvent {
   reason?: string;
 }
 
+/** Returns true if input value is a WebSocketCloseEvent, false otherwise. */
 export function isWebSocketCloseEvent(
   a: WebSocketEvent,
 ): a is WebSocketCloseEvent {
@@ -39,6 +40,7 @@ export function isWebSocketCloseEvent(
 
 export type WebSocketPingEvent = ["ping", Uint8Array];
 
+/** Returns true if input value is a WebSocketPingEvent, false otherwise. */
 export function isWebSocketPingEvent(
   a: WebSocketEvent,
 ): a is WebSocketPingEvent {
@@ -47,6 +49,7 @@ export function isWebSocketPingEvent(
 
 export type WebSocketPongEvent = ["pong", Uint8Array];
 
+/** Returns true if input value is a WebSocketPongEvent, false otherwise. */
 export function isWebSocketPongEvent(
   a: WebSocketEvent,
 ): a is WebSocketPongEvent {
@@ -102,7 +105,7 @@ export function unmask(payload: Uint8Array, mask?: Uint8Array): void {
   }
 }
 
-/** Write websocket frame to given writer */
+/** Write WebSocket frame to inputted writer. */
 export async function writeFrame(
   frame: WebSocketFrame,
   writer: Deno.Writer,
@@ -189,11 +192,6 @@ export async function readFrame(buf: BufReader): Promise<WebSocketFrame> {
     mask,
     payload,
   };
-}
-
-// Create client-to-server mask, random 32bit number
-function createMask(): Uint8Array {
-  return crypto.getRandomValues(new Uint8Array(4));
 }
 
 class WebSocketImpl implements WebSocket {
@@ -390,7 +388,7 @@ class WebSocketImpl implements WebSocket {
   }
 }
 
-/** Return whether given headers is acceptable for websocket  */
+/** Returns true if input headers are usable for WebSocket, otherwise false.  */
 export function acceptable(req: { headers: Headers }): boolean {
   const upgrade = req.headers.get("upgrade");
   if (!upgrade || upgrade.toLowerCase() !== "websocket") {
@@ -406,7 +404,7 @@ export function acceptable(req: { headers: Headers }): boolean {
 
 const kGUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-/** Create sec-websocket-accept header value with given nonce */
+/** Create value of Sec-WebSocket-Accept header from inputted nonce. */
 export function createSecAccept(nonce: string): string {
   const sha1 = new Sha1();
   sha1.update(nonce + kGUID);
@@ -414,7 +412,7 @@ export function createSecAccept(nonce: string): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-/** Upgrade given TCP connection into websocket connection */
+/** Upgrade inputted TCP connection into WebSocket connection. */
 export async function acceptWebSocket(req: {
   conn: Deno.Conn;
   bufWriter: BufWriter;
@@ -429,13 +427,22 @@ export async function acceptWebSocket(req: {
       throw new Error("sec-websocket-key is not provided");
     }
     const secAccept = createSecAccept(secKey);
+    const newHeaders = new Headers({
+      Upgrade: "websocket",
+      Connection: "Upgrade",
+      "Sec-WebSocket-Accept": secAccept,
+    });
+    const secProtocol = headers.get("sec-websocket-protocol");
+    if (typeof secProtocol === "string") {
+      newHeaders.set("Sec-WebSocket-Protocol", secProtocol);
+    }
+    const secVersion = headers.get("sec-websocket-version");
+    if (typeof secVersion === "string") {
+      newHeaders.set("Sec-WebSocket-Version", secVersion);
+    }
     await writeResponse(bufWriter, {
       status: 101,
-      headers: new Headers({
-        Upgrade: "websocket",
-        Connection: "Upgrade",
-        "Sec-WebSocket-Accept": secAccept,
-      }),
+      headers: newHeaders,
     });
     return sock;
   }
@@ -444,7 +451,7 @@ export async function acceptWebSocket(req: {
 
 const kSecChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-.~_";
 
-/** Create WebSocket-Sec-Key. Base64 encoded 16 bytes string */
+/** Returns base64 encoded 16 bytes string for Sec-WebSocket-Key header. */
 export function createSecKey(): string {
   let key = "";
   for (let i = 0; i < 16; i++) {
@@ -512,42 +519,6 @@ export async function handshake(
         `expected=${expectedSecAccept}, actual=${secAccept}`,
     );
   }
-}
-
-/**
- * Connect to given websocket endpoint url.
- * Endpoint must be acceptable for URL.
- */
-export async function connectWebSocket(
-  endpoint: string,
-  headers: Headers = new Headers(),
-): Promise<WebSocket> {
-  const url = new URL(endpoint);
-  const { hostname } = url;
-  let conn: Deno.Conn;
-  if (url.protocol === "http:" || url.protocol === "ws:") {
-    const port = parseInt(url.port || "80");
-    conn = await Deno.connect({ hostname, port });
-  } else if (url.protocol === "https:" || url.protocol === "wss:") {
-    const port = parseInt(url.port || "443");
-    conn = await Deno.connectTls({ hostname, port });
-  } else {
-    throw new Error("ws: unsupported protocol: " + url.protocol);
-  }
-  const bufWriter = new BufWriter(conn);
-  const bufReader = new BufReader(conn);
-  try {
-    await handshake(url, headers, bufReader, bufWriter);
-  } catch (err) {
-    conn.close();
-    throw err;
-  }
-  return new WebSocketImpl({
-    conn,
-    bufWriter,
-    bufReader,
-    mask: createMask(),
-  });
 }
 
 export function createWebSocket(params: {

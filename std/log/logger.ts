@@ -1,11 +1,10 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
-import {
-  LogLevels,
-  getLevelByName,
-  getLevelName,
-  LevelName,
-} from "./levels.ts";
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
+import { getLevelByName, getLevelName, LogLevels } from "./levels.ts";
+import type { LevelName } from "./levels.ts";
 import type { BaseHandler } from "./handlers.ts";
+
+// deno-lint-ignore no-explicit-any
+export type GenericFunction = (...args: any[]) => any;
 
 export interface LogRecordOptions {
   msg: string;
@@ -91,7 +90,7 @@ export class Logger {
    */
   private _log<T>(
     level: number,
-    msg: (T extends Function ? never : T) | (() => T),
+    msg: (T extends GenericFunction ? never : T) | (() => T),
     ...args: unknown[]
   ): T | undefined {
     if (this.level > level) {
@@ -132,6 +131,8 @@ export class Logger {
       typeof data === "symbol"
     ) {
       return String(data);
+    } else if (data instanceof Error) {
+      return data.stack!;
     } else if (typeof data === "object") {
       return JSON.stringify(data);
     }
@@ -139,45 +140,48 @@ export class Logger {
   }
 
   debug<T>(msg: () => T, ...args: unknown[]): T | undefined;
-  debug<T>(msg: T extends Function ? never : T, ...args: unknown[]): T;
+  debug<T>(msg: T extends GenericFunction ? never : T, ...args: unknown[]): T;
   debug<T>(
-    msg: (T extends Function ? never : T) | (() => T),
+    msg: (T extends GenericFunction ? never : T) | (() => T),
     ...args: unknown[]
   ): T | undefined {
     return this._log(LogLevels.DEBUG, msg, ...args);
   }
 
   info<T>(msg: () => T, ...args: unknown[]): T | undefined;
-  info<T>(msg: T extends Function ? never : T, ...args: unknown[]): T;
+  info<T>(msg: T extends GenericFunction ? never : T, ...args: unknown[]): T;
   info<T>(
-    msg: (T extends Function ? never : T) | (() => T),
+    msg: (T extends GenericFunction ? never : T) | (() => T),
     ...args: unknown[]
   ): T | undefined {
     return this._log(LogLevels.INFO, msg, ...args);
   }
 
   warning<T>(msg: () => T, ...args: unknown[]): T | undefined;
-  warning<T>(msg: T extends Function ? never : T, ...args: unknown[]): T;
+  warning<T>(msg: T extends GenericFunction ? never : T, ...args: unknown[]): T;
   warning<T>(
-    msg: (T extends Function ? never : T) | (() => T),
+    msg: (T extends GenericFunction ? never : T) | (() => T),
     ...args: unknown[]
   ): T | undefined {
     return this._log(LogLevels.WARNING, msg, ...args);
   }
 
   error<T>(msg: () => T, ...args: unknown[]): T | undefined;
-  error<T>(msg: T extends Function ? never : T, ...args: unknown[]): T;
+  error<T>(msg: T extends GenericFunction ? never : T, ...args: unknown[]): T;
   error<T>(
-    msg: (T extends Function ? never : T) | (() => T),
+    msg: (T extends GenericFunction ? never : T) | (() => T),
     ...args: unknown[]
   ): T | undefined {
     return this._log(LogLevels.ERROR, msg, ...args);
   }
 
   critical<T>(msg: () => T, ...args: unknown[]): T | undefined;
-  critical<T>(msg: T extends Function ? never : T, ...args: unknown[]): T;
   critical<T>(
-    msg: (T extends Function ? never : T) | (() => T),
+    msg: T extends GenericFunction ? never : T,
+    ...args: unknown[]
+  ): T;
+  critical<T>(
+    msg: (T extends GenericFunction ? never : T) | (() => T),
     ...args: unknown[]
   ): T | undefined {
     return this._log(LogLevels.CRITICAL, msg, ...args);

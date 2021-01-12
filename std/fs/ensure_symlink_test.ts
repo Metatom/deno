@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 // TODO(axetroy): Add test for Windows once symlink is implemented for Windows.
 import {
   assertEquals,
@@ -8,7 +8,8 @@ import {
 import * as path from "../path/mod.ts";
 import { ensureSymlink, ensureSymlinkSync } from "./ensure_symlink.ts";
 
-const testdataDir = path.resolve("fs", "testdata");
+const moduleDir = path.dirname(path.fromFileUrl(import.meta.url));
+const testdataDir = path.resolve(moduleDir, "testdata");
 
 Deno.test("ensureSymlinkIfItNotExist", async function (): Promise<void> {
   const testDir = path.join(testdataDir, "link_file_1");

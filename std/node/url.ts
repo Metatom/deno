@@ -20,14 +20,13 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import {
+  CHAR_BACKWARD_SLASH,
+  CHAR_FORWARD_SLASH,
   CHAR_LOWERCASE_A,
   CHAR_LOWERCASE_Z,
-  CHAR_FORWARD_SLASH,
-  CHAR_BACKWARD_SLASH,
 } from "../path/_constants.ts";
 import * as path from "./path.ts";
-
-const isWindows = Deno.build.os === "windows";
+import { isWindows } from "../_util/os.ts";
 
 const forwardSlashRegEx = /\//g;
 const percentRegEx = /%/g;
@@ -36,6 +35,13 @@ const newlineRegEx = /\n/g;
 const carriageReturnRegEx = /\r/g;
 const tabRegEx = /\t/g;
 
+const _url = URL;
+export { _url as URL };
+
+/**
+ * Get fully resolved platform-specific file path from the given URL string/ object
+ * @param path The file URL string or URL object to convert to a path
+ */
 export function fileURLToPath(path: string | URL): string {
   if (typeof path === "string") path = new URL(path);
   else if (!(path instanceof URL)) {
@@ -105,6 +111,7 @@ function getPathFromURLPosix(url: URL): string {
   return decodeURIComponent(pathname);
 }
 
+/** Get fully resolved platform-specific File URL from the given file path */
 export function pathToFileURL(filepath: string): URL {
   let resolved = path.resolve(filepath);
   // path.resolve strips trailing slashes so we must add them back
@@ -130,3 +137,9 @@ export function pathToFileURL(filepath: string): URL {
   outURL.pathname = resolved;
   return outURL;
 }
+
+export default {
+  fileURLToPath,
+  pathToFileURL,
+  URL,
+};

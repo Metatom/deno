@@ -1,29 +1,29 @@
 #!/usr/bin/env -S deno run --reload --allow-run
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import "./unit_tests.ts";
 import {
-  REGISTERED_UNIT_TESTS,
   colors,
-  readLines,
-  permissionCombinations,
-  Permissions,
-  registerUnitTests,
   fmtPerms,
   parseArgs,
+  permissionCombinations,
+  Permissions,
+  readLines,
+  REGISTERED_UNIT_TESTS,
+  registerUnitTests,
   reportToConn,
 } from "./test_util.ts";
 
 // @ts-expect-error TypeScript (as of 3.7) does not support indexing namespaces by symbol
 const internalObj = Deno[Deno.internal];
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// deno-lint-ignore no-explicit-any
 const reportToConsole = internalObj.reportToConsole as (message: any) => void;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// deno-lint-ignore no-explicit-any
 const runTests = internalObj.runTests as (options: any) => Promise<any>;
 
 interface PermissionSetTestResult {
   perms: Permissions;
   passed: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // deno-lint-ignore no-explicit-any
   endMessage: any;
   permsStr: string;
 }
@@ -97,6 +97,7 @@ function spawnWorkerRunner(
     Deno.execPath(),
     "run",
     "--unstable", // TODO(ry) be able to test stable vs unstable
+    "--location=http://js-unit-tests/foo/bar",
     "-A",
     "cli/tests/unit/unit_test_runner.ts",
     "--worker",
@@ -135,12 +136,12 @@ async function runTestsForPermissionSet(
   const conn = await listener.accept();
 
   let expectedPassedTests;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // deno-lint-ignore no-explicit-any
   let endMessage: any;
 
   try {
     for await (const line of readLines(conn)) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // deno-lint-ignore no-explicit-any
       const message = JSON.parse(line) as any;
       reportToConsole(message);
       if (message.start != null) {

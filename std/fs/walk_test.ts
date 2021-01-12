@@ -1,4 +1,5 @@
-import { walk, walkSync, WalkOptions, WalkEntry } from "./walk.ts";
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
+import { walk, WalkEntry, WalkOptions, walkSync } from "./walk.ts";
 import { assert, assertEquals, assertThrowsAsync } from "../testing/asserts.ts";
 
 export function testWalk(
@@ -251,12 +252,11 @@ testWalk(
   async function symlink(): Promise<void> {
     assertReady(6);
     const files = await walkArray("a");
-    assertEquals(files.length, 2);
+    assertEquals(files.length, 3);
     assert(!files.includes("a/bb/z"));
 
     const arr = await walkArray("a", { followSymlinks: true });
-    assertEquals(arr.length, 3);
+    assertEquals(arr.length, 5);
     assert(arr.some((f): boolean => f.endsWith("/b/z")));
   },
-  true,
 );

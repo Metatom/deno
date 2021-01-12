@@ -1,5 +1,20 @@
-import { assert } from "../testing/asserts.ts";
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
+
+import {
+  assert,
+  assertEquals,
+  assertStrictEquals,
+  assertThrows,
+} from "../testing/asserts.ts";
+import { stripColor } from "../fmt/colors.ts";
 import * as util from "./util.ts";
+
+Deno.test({
+  name: "[util] inspect",
+  fn() {
+    assertEquals(stripColor(util.inspect({ foo: 123 })), "{ foo: 123 }");
+  },
+});
 
 Deno.test({
   name: "[util] isBoolean",
@@ -172,4 +187,61 @@ Deno.test({
     // Test verifies the method is exposed. See _util/_util_types_test for details
     assert(util.types.isDate(new Date()));
   },
+});
+
+Deno.test({
+  name: "[util] getSystemErrorName()",
+  fn() {
+    type FnTestInvalidArg = (code?: unknown) => void;
+
+    assertThrows(
+      () => (util.getSystemErrorName as FnTestInvalidArg)(),
+      TypeError,
+    );
+    assertThrows(
+      () => (util.getSystemErrorName as FnTestInvalidArg)(1),
+      RangeError,
+    );
+
+    assertStrictEquals(util.getSystemErrorName(-424242), undefined);
+
+    switch (Deno.build.os) {
+      case "windows":
+        assertStrictEquals(util.getSystemErrorName(-4091), "EADDRINUSE");
+        break;
+
+      case "darwin":
+        assertStrictEquals(util.getSystemErrorName(-48), "EADDRINUSE");
+        break;
+
+      case "linux":
+        assertStrictEquals(util.getSystemErrorName(-98), "EADDRINUSE");
+        break;
+    }
+  },
+});
+
+Deno.test("[util] deprecate", () => {
+  const warn = console.warn.bind(null);
+
+  let output;
+  console.warn = function (str: string) {
+    output = str;
+    warn(output);
+  };
+
+  const message = "x is deprecated";
+
+  const expected = 12;
+  let result;
+  const x = util.deprecate(() => {
+    result = expected;
+  }, message);
+
+  x();
+
+  assertEquals(expected, result);
+  assertEquals(output, message);
+
+  console.warn = warn;
 });

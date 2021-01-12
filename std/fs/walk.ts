@@ -4,7 +4,8 @@
 import { assert } from "../_util/assert.ts";
 import { basename, join, normalize } from "../path/mod.ts";
 
-export function createWalkEntrySync(path: string): WalkEntry {
+/** Create WalkEntry for the `path` synchronously */
+export function _createWalkEntrySync(path: string): WalkEntry {
   path = normalize(path);
   const name = basename(path);
   const info = Deno.statSync(path);
@@ -17,7 +18,8 @@ export function createWalkEntrySync(path: string): WalkEntry {
   };
 }
 
-export async function createWalkEntry(path: string): Promise<WalkEntry> {
+/** Create WalkEntry for the `path` asynchronously */
+export async function _createWalkEntry(path: string): Promise<WalkEntry> {
   path = normalize(path);
   const name = basename(path);
   const info = await Deno.stat(path);
@@ -76,10 +78,11 @@ export interface WalkEntry extends Deno.DirEntry {
  * - match?: RegExp[];
  * - skip?: RegExp[];
  *
- *      for await (const entry of walk(".")) {
- *        console.log(entry.path);
- *        assert(entry.isFile);
- *      };
+ *
+ *       for await (const entry of walk(".")) {
+ *         console.log(entry.path);
+ *         assert(entry.isFile);
+ *       }
  */
 export async function* walk(
   root: string,
@@ -97,23 +100,22 @@ export async function* walk(
     return;
   }
   if (includeDirs && include(root, exts, match, skip)) {
-    yield await createWalkEntry(root);
+    yield await _createWalkEntry(root);
   }
   if (maxDepth < 1 || !include(root, undefined, undefined, skip)) {
     return;
   }
   for await (const entry of Deno.readDir(root)) {
+    assert(entry.name != null);
+    let path = join(root, entry.name);
+
     if (entry.isSymlink) {
       if (followSymlinks) {
-        // TODO(ry) Re-enable followSymlinks.
-        throw new Error("unimplemented");
+        path = await Deno.realPath(path);
       } else {
         continue;
       }
     }
-
-    assert(entry.name != null);
-    const path = join(root, entry.name);
 
     if (entry.isFile) {
       if (includeFiles && include(path, exts, match, skip)) {
@@ -150,22 +152,22 @@ export function* walkSync(
     return;
   }
   if (includeDirs && include(root, exts, match, skip)) {
-    yield createWalkEntrySync(root);
+    yield _createWalkEntrySync(root);
   }
   if (maxDepth < 1 || !include(root, undefined, undefined, skip)) {
     return;
   }
   for (const entry of Deno.readDirSync(root)) {
+    assert(entry.name != null);
+    let path = join(root, entry.name);
+
     if (entry.isSymlink) {
       if (followSymlinks) {
-        throw new Error("unimplemented");
+        path = Deno.realPathSync(path);
       } else {
         continue;
       }
     }
-
-    assert(entry.name != null);
-    const path = join(root, entry.name);
 
     if (entry.isFile) {
       if (includeFiles && include(path, exts, match, skip)) {

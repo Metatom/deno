@@ -1,4 +1,4 @@
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 import {
   assertEquals,
   assertThrows,
@@ -10,7 +10,8 @@ import { ensureFile, ensureFileSync } from "./ensure_file.ts";
 import { ensureDir, ensureDirSync } from "./ensure_dir.ts";
 import { exists, existsSync } from "./exists.ts";
 
-const testdataDir = path.resolve("fs", "testdata");
+const moduleDir = path.dirname(path.fromFileUrl(import.meta.url));
+const testdataDir = path.resolve(moduleDir, "testdata");
 
 Deno.test("moveDirectoryIfSrcNotExists", async function (): Promise<void> {
   const srcDir = path.join(testdataDir, "move_test_src_1");

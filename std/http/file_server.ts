@@ -1,13 +1,19 @@
 #!/usr/bin/env -S deno run --allow-net --allow-read
-// Copyright 2018-2020 the Deno authors. All rights reserved. MIT license.
+// Copyright 2018-2021 the Deno authors. All rights reserved. MIT license.
 
 // This program serves files in the current directory over HTTP.
 // TODO Stream responses instead of reading them into memory.
 // TODO Add tests like these:
 // https://github.com/indexzero/http-server/blob/master/test/http-server-test.js
 
-import { posix, extname } from "../path/mod.ts";
-import { listenAndServe, ServerRequest, Response } from "./server.ts";
+import { extname, posix } from "../path/mod.ts";
+import {
+  HTTPSOptions,
+  listenAndServe,
+  listenAndServeTLS,
+  Response,
+  ServerRequest,
+} from "./server.ts";
 import { parse } from "../flags/mod.ts";
 import { assert } from "../_util/assert.ts";
 
@@ -18,16 +24,26 @@ interface EntryInfo {
   name: string;
 }
 
-interface FileServerArgs {
+export interface FileServerArgs {
   _: string[];
   // -p --port
-  p: number;
-  port: number;
+  p?: number;
+  port?: number;
   // --cors
-  cors: boolean;
+  cors?: boolean;
+  // --no-dir-listing
+  "dir-listing"?: boolean;
+  // --host
+  host?: string;
+  // -c --cert
+  c?: string;
+  cert?: string;
+  // -k --key
+  k?: string;
+  key?: string;
   // -h --help
-  h: boolean;
-  help: boolean;
+  h?: boolean;
+  help?: boolean;
 }
 
 const encoder = new TextEncoder();
@@ -49,6 +65,7 @@ const MEDIA_TYPES: Record<string, string> = {
   ".gz": "application/gzip",
   ".css": "text/css",
   ".wasm": "application/wasm",
+  ".mjs": "application/javascript",
 };
 
 /** Returns the content-type based on the extension of a path. */
@@ -95,6 +112,11 @@ function fileLenToString(len: number): string {
   return `${(len / base).toFixed(2)}${suffix[suffixIndex]}`;
 }
 
+/**
+ * Returns an HTTP Response with the requested file as the body
+ * @param req The server request context used to cleanup the file handle
+ * @param filePath Path of the file to serve
+ */
 export async function serveFile(
   req: ServerRequest,
   filePath: string,
@@ -165,10 +187,15 @@ async function serveDir(
 }
 
 function serveFallback(req: ServerRequest, e: Error): Promise<Response> {
-  if (e instanceof Deno.errors.NotFound) {
+  if (e instanceof URIError) {
+    return Promise.resolve({
+      status: 400,
+      body: encoder.encode("Bad Request"),
+    });
+  } else if (e instanceof Deno.errors.NotFound) {
     return Promise.resolve({
       status: 404,
-      body: encoder.encode("Not found"),
+      body: encoder.encode("Not Found"),
     });
   } else {
     return Promise.resolve({
@@ -304,9 +331,53 @@ function html(strings: TemplateStringsArray, ...values: unknown[]): string {
   return html;
 }
 
+function normalizeURL(url: string): string {
+  let normalizedUrl = url;
+  try {
+    normalizedUrl = decodeURI(normalizedUrl);
+  } catch (e) {
+    if (!(e instanceof URIError)) {
+      throw e;
+    }
+  }
+
+  try {
+    //allowed per https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html
+    const absoluteURI = new URL(normalizedUrl);
+    normalizedUrl = absoluteURI.pathname;
+  } catch (e) { //wasn't an absoluteURI
+    if (!(e instanceof TypeError)) {
+      throw e;
+    }
+  }
+
+  if (normalizedUrl[0] !== "/") {
+    throw new URIError("The request URI is malformed.");
+  }
+
+  normalizedUrl = posix.normalize(normalizedUrl);
+  const startOfParams = normalizedUrl.indexOf("?");
+  return startOfParams > -1
+    ? normalizedUrl.slice(0, startOfParams)
+    : normalizedUrl;
+}
+
 function main(): void {
   const CORSEnabled = serverArgs.cors ? true : false;
-  const addr = `0.0.0.0:${serverArgs.port ?? serverArgs.p ?? 4507}`;
+  const port = serverArgs.port ?? serverArgs.p ?? 4507;
+  const host = serverArgs.host ?? "0.0.0.0";
+  const addr = `${host}:${port}`;
+  const tlsOpts = {} as HTTPSOptions;
+  tlsOpts.certFile = serverArgs.cert ?? serverArgs.c ?? "";
+  tlsOpts.keyFile = serverArgs.key ?? serverArgs.k ?? "";
+  const dirListingEnabled = serverArgs["dir-listing"] ?? true;
+
+  if (tlsOpts.keyFile || tlsOpts.certFile) {
+    if (tlsOpts.keyFile === "" || tlsOpts.certFile === "") {
+      console.log("--key and --cert are required for TLS");
+      serverArgs.h = true;
+    }
+  }
 
   if (serverArgs.h ?? serverArgs.help) {
     console.log(`Deno File Server
@@ -321,50 +392,61 @@ function main(): void {
   OPTIONS:
     -h, --help          Prints help information
     -p, --port <PORT>   Set port
-    --cors              Enable CORS via the "Access-Control-Allow-Origin" header`);
+    --cors              Enable CORS via the "Access-Control-Allow-Origin" header
+    --host     <HOST>   Hostname (default is 0.0.0.0)
+    -c, --cert <FILE>   TLS certificate file (enables TLS)
+    -k, --key  <FILE>   TLS key file (enables TLS)
+    --no-dir-listing    Disable directory listing
+
+    All TLS options are required when one is provided.`);
     Deno.exit();
   }
 
-  listenAndServe(
-    addr,
-    async (req): Promise<void> => {
-      let normalizedUrl = posix.normalize(req.url);
-      try {
-        normalizedUrl = decodeURIComponent(normalizedUrl);
-      } catch (e) {
-        if (!(e instanceof URIError)) {
-          throw e;
-        }
+  const handler = async (req: ServerRequest): Promise<void> => {
+    let response: Response | undefined;
+    try {
+      const normalizedUrl = normalizeURL(req.url);
+      let fsPath = posix.join(target, normalizedUrl);
+      if (fsPath.indexOf(target) !== 0) {
+        fsPath = target;
       }
-      const fsPath = posix.join(target, normalizedUrl);
-
-      let response: Response | undefined;
-      try {
-        const fileInfo = await Deno.stat(fsPath);
-        if (fileInfo.isDirectory) {
+      const fileInfo = await Deno.stat(fsPath);
+      if (fileInfo.isDirectory) {
+        if (dirListingEnabled) {
           response = await serveDir(req, fsPath);
         } else {
-          response = await serveFile(req, fsPath);
+          throw new Deno.errors.NotFound();
         }
+      } else {
+        response = await serveFile(req, fsPath);
+      }
+    } catch (e) {
+      console.error(e.message);
+      response = await serveFallback(req, e);
+    } finally {
+      if (CORSEnabled) {
+        assert(response);
+        setCORS(response);
+      }
+      serverLog(req, response!);
+      try {
+        await req.respond(response!);
       } catch (e) {
         console.error(e.message);
-        response = await serveFallback(req, e);
-      } finally {
-        if (CORSEnabled) {
-          assert(response);
-          setCORS(response);
-        }
-        serverLog(req, response!);
-        try {
-          await req.respond(response!);
-        } catch (e) {
-          console.error(e.message);
-        }
       }
-    },
-  );
+    }
+  };
 
-  console.log(`HTTP server listening on http://${addr}/`);
+  let proto = "http";
+  if (tlsOpts.keyFile || tlsOpts.certFile) {
+    proto += "s";
+    tlsOpts.hostname = host;
+    tlsOpts.port = port;
+    listenAndServeTLS(tlsOpts, handler);
+  } else {
+    listenAndServe(addr, handler);
+  }
+  console.log(`${proto.toUpperCase()} server listening on ${proto}://${addr}/`);
 }
 
 if (import.meta.main) {
